@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getInterview, saveInterview, importTranscript } from '@/lib/api'
 import { CHANNELS, PAIN_CATEGORIES, FREQUENCIES, OUTSOURCED_OPTIONS, AUTOPILOT_OPTIONS, SCORE_DIMENSIONS, scoreColor } from '@/lib/constants'
 
@@ -158,7 +159,15 @@ export default function InterviewFormPage({ params }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <button onClick={() => router.push('/interviews')} className="text-text-secondary text-sm hover:text-text transition">&larr; Back</button>
-        <h1 className="text-xl font-semibold text-text">{isNew ? 'New Interview' : 'Edit Interview'}</h1>
+        <div className="flex items-center gap-2">
+          {!isNew && (
+            <Link href={`/interviews/${id}/flow`}
+              className="text-xs px-4 py-2 bg-accent text-white rounded-full hover:bg-accent-light transition-all active:scale-[0.97] font-medium shadow-sm">
+              View Workflow
+            </Link>
+          )}
+          <h1 className="text-xl font-semibold text-text">{isNew ? 'New Interview' : 'Edit Interview'}</h1>
+        </div>
       </div>
 
       {/* Import Transcript */}
