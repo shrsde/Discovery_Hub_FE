@@ -44,6 +44,21 @@ select option {
   color: #0d0e0e;
 }
 
+/* Tiptap editor overrides */
+.tiptap {
+  outline: none;
+}
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #999999;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.tiptap .ProseMirror {
+  min-height: 60px;
+}
+
 input[type="range"] {
   background: transparent !important;
   border: none !important;

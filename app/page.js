@@ -105,32 +105,34 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Active Syncs */}
-      {activeSyncs.length > 0 && (
-        <section>
-          <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-3">Active Syncs</h2>
-          <div className="space-y-2">
-            {activeSyncs.slice(0, 5).map(s => {
-              const st = getSyncType(s.type)
-              return (
-                <Link key={s.id} href={`/sync/${s.id}`}
-                  className="block bg-card border border-border rounded-lg p-3.5 hover:shadow hover:-translate-y-px transition-all">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-lg">{st.icon}</span>
-                    <span className="font-medium text-text text-sm flex-1">{s.title}</span>
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${s.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
-                      {s.author?.[0]}
-                    </span>
-                  </div>
-                  {s.key_takeaways && (
-                    <p className="text-text-secondary text-xs mt-1.5 line-clamp-2 pl-8">{s.key_takeaways}</p>
-                  )}
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      {/* Latest Sync */}
+      {activeSyncs.length > 0 && (() => {
+        const s = activeSyncs[0]
+        const st = getSyncType(s.type)
+        return (
+          <section>
+            <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-3">Latest Sync</h2>
+            <Link href={`/sync/${s.id}`}
+              className="block bg-card border border-border rounded-lg p-3.5 hover:shadow hover:-translate-y-px transition-all">
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">{st.icon}</span>
+                <span className="font-medium text-text text-sm flex-1">{s.title}</span>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${s.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
+                  {s.author?.[0]}
+                </span>
+              </div>
+              {s.key_takeaways && (
+                <p className="text-text-secondary text-xs mt-1.5 line-clamp-2 pl-8">{s.key_takeaways}</p>
+              )}
+            </Link>
+            {activeSyncs.length > 1 && (
+              <Link href="/sync" className="block text-center text-xs text-accent hover:underline mt-2 font-medium">
+                View {activeSyncs.length - 1} more sync{activeSyncs.length > 2 ? 's' : ''} →
+              </Link>
+            )}
+          </section>
+        )
+      })()}
 
       {/* Pain Distribution */}
       {totalPainPoints > 0 && (
@@ -148,33 +150,37 @@ export default function Dashboard() {
       )}
 
       {/* Hypotheses / Questions / Actions */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {[
-          { title: 'Hypotheses', items: hypotheses, type: 'hypothesis' },
-          { title: 'Open Questions', items: questions, type: 'question' },
-          { title: 'Action Items', items: actions, type: 'action' },
-        ].map(({ title, items, type }) => (
-          <section key={type}>
-            <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-3">
-              {title} <span>({items.length})</span>
-            </h2>
-            <div className="space-y-2">
-              {items.slice(0, 5).map(item => {
-                const ft = getFeedType(item.type)
-                return (
-                  <div key={item.id} className={`border rounded-lg p-2.5 text-xs ${ft.color}`}>
-                    <div className="flex items-start gap-2">
-                      <span>{ft.emoji}</span>
-                      <span className="text-text">{item.text}</span>
-                    </div>
+      {[
+        { title: 'Hypotheses', items: hypotheses, type: 'hypothesis' },
+        { title: 'Open Questions', items: questions, type: 'question' },
+        { title: 'Action Items', items: actions, type: 'action' },
+      ].map(({ title, items, type }) => items.length > 0 && (
+        <section key={type}>
+          <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-3">
+            {title} <span>({items.length})</span>
+          </h2>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+            {items.slice(0, 6).map(item => {
+              const ft = getFeedType(item.type)
+              return (
+                <div key={item.id} className={`border rounded-lg p-3 text-xs shrink-0 w-[200px] ${ft.color}`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span>{ft.emoji}</span>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${item.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
+                      {item.author?.[0]}
+                    </span>
+                    <span className="text-[10px] text-text-tertiary ml-auto">{timeAgo(item.created_at)}</span>
                   </div>
-                )
-              })}
-              {items.length === 0 && <p className="text-text-tertiary text-xs">None yet</p>}
-            </div>
-          </section>
-        ))}
-      </div>
+                  <p className="text-text text-xs line-clamp-2">{item.text?.replace(/<[^>]*>/g, '')}</p>
+                </div>
+              )
+            })}
+          </div>
+          <Link href={`/feed?type=${type}`} className="text-xs text-accent hover:underline font-medium mt-1 inline-block">
+            View on Feed →
+          </Link>
+        </section>
+      ))}
 
       {/* Recent Activity */}
       <section>

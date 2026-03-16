@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews } from '@/lib/api'
+import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings } from '@/lib/api'
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
+import RichEditor, { RichContent } from '@/components/RichEditor'
+import { useAuth } from '@/lib/auth-context'
 
 function VideoEmbed({ url }) {
   let embedUrl = null
@@ -99,13 +101,14 @@ function TaggedText({ text }) {
 }
 
 export default function FeedPage() {
+  const { displayName } = useAuth()
   const [feed, setFeed] = useState([])
   const [interviews, setInterviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [view, setView] = useState('active')
-  const [author, setAuthor] = useState('Wes')
+  const [author, setAuthor] = useState(displayName || 'Wes')
   const [type, setType] = useState('insight')
   const [text, setText] = useState('')
   const [linkedId, setLinkedId] = useState('')
@@ -116,6 +119,18 @@ export default function FeedPage() {
   const [showMediaOptions, setShowMediaOptions] = useState(false)
   const [selectedPosts, setSelectedPosts] = useState(new Set())
   const [selectMode, setSelectMode] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState('all')
+  const [sortOrder, setSortOrder] = useState('newest')
+  const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [meetingTitle, setMeetingTitle] = useState('')
+  const [meetingOrganizer, setMeetingOrganizer] = useState('Wes')
+  const [creatingMeeting, setCreatingMeeting] = useState(false)
+  const [addingTranscriptTo, setAddingTranscriptTo] = useState(null)
+  const [meetingTranscript, setMeetingTranscript] = useState('')
+  const [meetingDuration, setMeetingDuration] = useState('')
+  const [meetingParticipants, setMeetingParticipants] = useState(['Wes', 'Gibb'])
+  const [processingTranscript, setProcessingTranscript] = useState(false)
   const fileInputRef = useRef(null)
 
   async function loadFeed() {
@@ -161,6 +176,63 @@ export default function FeedPage() {
     setMediaUrl('')
     setMediaType(null)
     setMediaName('')
+  }
+
+  async function handleCreateMeeting(e) {
+    e.preventDefault()
+    if (!meetingTitle.trim()) return
+    setCreatingMeeting(true)
+    try {
+      const res = await createMeeting({ title: meetingTitle.trim(), organizer: meetingOrganizer })
+      if (res.success && res.data.meet_link) {
+        window.open(res.data.meet_link, '_blank')
+      }
+      setMeetingTitle('')
+      setShowMeetingModal(false)
+      await loadFeed()
+    } finally { setCreatingMeeting(false) }
+  }
+
+  async function handleAddMeetingTranscript(feedItemId) {
+    if (!meetingTranscript.trim()) return
+    setProcessingTranscript(true)
+    try {
+      const feedItem = feed.find(f => f.id === feedItemId)
+
+      // Find the meeting record
+      const meetingsRes = await getMeetings()
+      const meetings = meetingsRes.data || []
+      const meeting = meetings.find(m => feedItem?.text?.includes(m.title))
+
+      let summary = ''
+      const participants = meetingParticipants.join(', ')
+      const duration = meetingDuration || 'Unknown'
+
+      if (meeting) {
+        const res = await updateMeeting(meeting.id, {
+          transcript: meetingTranscript.trim(),
+          status: 'completed',
+        })
+        summary = res.data?.parsed_summary || ''
+      }
+
+      // Build rich meeting recap for the feed post
+      const meetingMeta = `Participants: ${participants} | Duration: ${duration}`
+      const fullSummary = summary
+        ? `${meetingMeta}\n\n${summary}`
+        : `${meetingMeta}\n\nTranscript uploaded (${meetingTranscript.trim().split(/\s+/).length} words)`
+
+      // Update the original feed post with summary + store transcript in text
+      await updateFeed(feedItemId, {
+        summary: fullSummary,
+        text: feedItem.text,
+      })
+
+      setMeetingTranscript('')
+      setMeetingDuration('')
+      setAddingTranscriptTo(null)
+      await loadFeed()
+    } finally { setProcessingTranscript(false) }
   }
 
   // Extract tags from text
@@ -227,8 +299,25 @@ export default function FeedPage() {
     setSelectedPosts(next)
   }
 
-  const pinned = feed.filter(f => f.pinned)
-  const unpinned = feed.filter(f => !f.pinned)
+  // Filter + search + sort
+  let filtered = feed
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase()
+    filtered = filtered.filter(f =>
+      f.text?.toLowerCase().includes(q) ||
+      f.author?.toLowerCase().includes(q) ||
+      f.summary?.toLowerCase().includes(q)
+    )
+  }
+  if (filterType !== 'all') {
+    filtered = filtered.filter(f => f.type === filterType)
+  }
+  if (sortOrder === 'oldest') {
+    filtered = [...filtered].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  }
+
+  const pinned = filtered.filter(f => f.pinned)
+  const unpinned = filtered.filter(f => !f.pinned)
 
   // Group unpinned by day
   const grouped = {}
@@ -245,6 +334,19 @@ export default function FeedPage() {
     const isSelected = selectedPosts.has(item.id)
     const hasMentionForWes = (item.tags || []).includes('Wes')
     const hasMentionForGibb = (item.tags || []).includes('Gibb')
+    const [editing, setEditing] = useState(false)
+    const [editText, setEditText] = useState(item.text)
+    const [savingEdit, setSavingEdit] = useState(false)
+
+    async function handleSaveEdit() {
+      if (!editText.trim()) return
+      setSavingEdit(true)
+      try {
+        await updateFeed(item.id, { text: editText })
+        setEditing(false)
+        await loadFeed()
+      } finally { setSavingEdit(false) }
+    }
 
     return (
       <div className={`bg-card border rounded-lg p-4 flex items-start gap-3 shadow-sm transition-all ${
@@ -268,16 +370,122 @@ export default function FeedPage() {
             {hasMentionForWes && <span className="text-[10px] px-1.5 py-0.5 rounded bg-wes/10 text-wes font-semibold">@Wes</span>}
             {hasMentionForGibb && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gibb/10 text-gibb font-semibold">@Gibb</span>}
             <span className="text-text-tertiary text-xs ml-auto">{timeAgo(item.created_at)}</span>
+            {item.edited_at && (
+              <span className="text-text-tertiary text-[10px] italic">
+                edited {new Date(item.edited_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              </span>
+            )}
           </div>
-          <p className="text-sm text-text mt-1.5 whitespace-pre-wrap"><TaggedText text={item.text} /></p>
+          {editing ? (
+            <div className="mt-1.5 space-y-2">
+              <RichEditor content={editText} onChange={setEditText} placeholder="Edit your post..." />
+              <div className="flex gap-2">
+                <button onClick={handleSaveEdit} disabled={savingEdit || !editText.trim()}
+                  className="text-xs px-3 py-1.5 bg-accent text-white rounded-full font-medium disabled:opacity-40">
+                  {savingEdit ? 'Saving...' : 'Save'}
+                </button>
+                <button onClick={() => { setEditing(false); setEditText(item.text) }}
+                  className="text-xs text-text-tertiary hover:text-text transition">Cancel</button>
+              </div>
+            </div>
+          ) : item.text?.startsWith('<') ? (
+            <div className="mt-1.5"><RichContent html={item.text} /></div>
+          ) : (
+            <p className="text-sm text-text mt-1.5 whitespace-pre-wrap"><TaggedText text={item.text} /></p>
+          )}
+
+          {/* Meeting-specific UI */}
+          {item.type === 'meeting' && (
+            <div className="mt-2 space-y-2">
+              {/* Meet link — show when no summary yet (meeting hasn't happened) */}
+              {!item.summary && (
+                <a href="https://meet.google.com/new" target="_blank" rel="noopener"
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
+                  📞 Join Google Meet
+                </a>
+              )}
+
+              {/* Meeting recap — show after transcript is processed */}
+              {item.summary && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Meeting Recap</div>
+                    <span className="text-[10px] text-indigo-400 bg-indigo-100 px-2 py-0.5 rounded-full">Completed</span>
+                  </div>
+                  <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed">{item.summary}</div>
+                </div>
+              )}
+
+              {/* Post-meeting form */}
+              {!item.summary && addingTranscriptTo !== item.id && (
+                <button onClick={() => { setAddingTranscriptTo(item.id); setMeetingTranscript(''); setMeetingDuration('') }}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 transition font-medium">
+                  Meeting done? Add recap →
+                </button>
+              )}
+              {addingTranscriptTo === item.id && (
+                <div className="bg-card-hover border border-border rounded-lg p-3 space-y-3">
+                  <div className="text-xs font-semibold text-text">Post-Meeting Recap</div>
+
+                  {/* Participants */}
+                  <div>
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Participants</label>
+                    <div className="flex gap-1.5">
+                      {['Wes', 'Gibb'].map(p => (
+                        <button key={p} type="button" onClick={() => {
+                          setMeetingParticipants(prev =>
+                            prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+                          )
+                        }}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                            meetingParticipants.includes(p)
+                              ? (p === 'Wes' ? 'bg-wes text-white border-wes' : 'bg-gibb text-white border-gibb')
+                              : 'bg-white border-border text-text-tertiary'
+                          }`}>{p}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Duration */}
+                  <div>
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Call Duration</label>
+                    <input value={meetingDuration} onChange={e => setMeetingDuration(e.target.value)}
+                      placeholder="e.g. 45 min" className="!text-xs" />
+                  </div>
+
+                  {/* Transcript */}
+                  <div>
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Transcript</label>
+                    <textarea value={meetingTranscript} onChange={e => setMeetingTranscript(e.target.value)}
+                      rows={6} placeholder="Paste the full meeting transcript here..." className="resize-none text-xs" />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button onClick={() => handleAddMeetingTranscript(item.id)}
+                      disabled={processingTranscript || !meetingTranscript.trim()}
+                      className="text-xs px-4 py-2 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition disabled:opacity-40">
+                      {processingTranscript ? 'Generating summary...' : 'Process & Post Recap'}
+                    </button>
+                    <button onClick={() => setAddingTranscriptTo(null)}
+                      className="text-xs text-text-tertiary hover:text-text transition">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <MediaPreview item={item} />
           {item.linked_interview_id && (
             <span className="text-xs text-blue-600 mt-1 inline-block">
               Linked: {interviews.find(i => i.id === item.linked_interview_id)?.company || 'Interview'}
             </span>
           )}
-          {!selectMode && (
+          {!selectMode && !editing && (
             <div className="flex items-center gap-3 mt-2">
+              <button onClick={() => { setEditing(true); setEditText(item.text) }}
+                className="text-[11px] text-text-tertiary hover:text-text transition">
+                Edit
+              </button>
               <button onClick={() => handlePin(item.id, item.pinned)}
                 className="text-[11px] text-text-tertiary hover:text-text transition">
                 {item.pinned ? 'Unpin' : 'Pin'}
@@ -326,28 +534,68 @@ export default function FeedPage() {
               </button>
             </>
           ) : (
-            <button onClick={() => setSelectMode(true)}
-              className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
-              Select
-            </button>
+            <>
+              <button onClick={() => setShowMeetingModal(true)}
+                className="text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
+                📞 Create Meeting
+              </button>
+              <button onClick={() => setSelectMode(true)}
+                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
+                Select
+              </button>
+            </>
           )}
         </div>
       </div>
 
-      {/* View tabs */}
-      <div className="flex gap-1">
-        {[
-          { value: 'active', label: 'Active' },
-          { value: 'archived', label: 'Archived' },
-          { value: 'all', label: 'All' },
-        ].map(v => (
-          <button key={v.value} onClick={() => { setView(v.value); setSelectedPosts(new Set()) }}
-            className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
-              view === v.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
-            }`}>
-            {v.label}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="space-y-3">
+        {/* Search */}
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search feed..." className="!rounded-full" />
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View tabs */}
+          <div className="flex gap-1">
+            {[
+              { value: 'active', label: 'Active' },
+              { value: 'archived', label: 'Archived' },
+              { value: 'all', label: 'All' },
+            ].map(v => (
+              <button key={v.value} onClick={() => { setView(v.value); setSelectedPosts(new Set()) }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  view === v.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
+                }`}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-px bg-border" />
+
+          {/* Type filter */}
+          <select value={filterType} onChange={e => setFilterType(e.target.value)}
+            className="!w-auto !rounded-full text-xs !py-1.5">
+            <option value="all">All types</option>
+            {FEED_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
+            ))}
+          </select>
+
+          {/* Sort */}
+          <select value={sortOrder} onChange={e => setSortOrder(e.target.value)}
+            className="!w-auto !rounded-full text-xs !py-1.5">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+
+          {(searchQuery || filterType !== 'all') && (
+            <button onClick={() => { setSearchQuery(''); setFilterType('all') }}
+              className="text-xs text-text-tertiary hover:text-text transition">
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Composer (only show on active view) */}
@@ -373,9 +621,8 @@ export default function FeedPage() {
             ))}
           </div>
 
-          <textarea value={text} onChange={e => setText(e.target.value)}
-            placeholder="What's on your mind? Use @Wes or @Gibb to tag" rows={3}
-            className="resize-none" />
+          <RichEditor content={text} onChange={setText}
+            placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
 
           {/* Media attachment preview */}
           {mediaUrl && (
@@ -474,6 +721,36 @@ export default function FeedPage() {
             </p>
           )}
         </>
+      )}
+
+      {/* Meeting creation modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowMeetingModal(false)}>
+          <div className="bg-white rounded-xl border border-border shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text">Create Meeting</h3>
+              <button onClick={() => setShowMeetingModal(false)} className="text-text-tertiary hover:text-text text-lg">&times;</button>
+            </div>
+            <form onSubmit={handleCreateMeeting} className="space-y-3">
+              <div className="flex gap-2">
+                {['Wes', 'Gibb'].map(a => (
+                  <button key={a} type="button" onClick={() => setMeetingOrganizer(a)}
+                    className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
+                      meetingOrganizer === a
+                        ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
+                        : 'bg-card-hover border border-border text-text-secondary'
+                    }`}>{a}</button>
+                ))}
+              </div>
+              <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
+                placeholder="Meeting title — e.g. Weekly sync" />
+              <button type="submit" disabled={creatingMeeting || !meetingTitle.trim()}
+                className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
+                {creatingMeeting ? 'Creating...' : 'Create & Open Google Meet'}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   )

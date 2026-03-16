@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getInterview, saveInterview, importTranscript } from '@/lib/api'
+import { getInterview, saveInterview, importTranscript, getAttachments, uploadAttachment, deleteAttachment } from '@/lib/api'
 import { CHANNELS, PAIN_CATEGORIES, FREQUENCIES, OUTSOURCED_OPTIONS, AUTOPILOT_OPTIONS, SCORE_DIMENSIONS, scoreColor } from '@/lib/constants'
 
 function DotSelector({ value, max = 5, onChange, label }) {
@@ -60,6 +60,9 @@ export default function InterviewFormPage({ params }) {
   const [importing, setImporting] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [importInterviewer, setImportInterviewer] = useState('Gibb')
+  const [attachments, setAttachments] = useState([])
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const attachInputRef = useRef(null)
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -89,8 +92,29 @@ export default function InterviewFormPage({ params }) {
         }
         setLoading(false)
       })
+      getAttachments(id).then(r => setAttachments(r.data || [])).catch(() => {})
     }
   }, [id, isNew])
+
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFile(true)
+    try {
+      await uploadAttachment(file, id, form.interviewer || 'Wes')
+      const r = await getAttachments(id)
+      setAttachments(r.data || [])
+    } catch (err) {
+      alert('Upload failed: ' + err.message)
+    } finally { setUploadingFile(false) }
+  }
+
+  async function handleDeleteAttachment(attachId) {
+    if (!confirm('Delete this attachment?')) return
+    await deleteAttachment(attachId)
+    const r = await getAttachments(id)
+    setAttachments(r.data || [])
+  }
 
   const update = (key, val) => setForm(f => ({ ...f, [key]: val }))
   const updatePain = (idx, key, val) => {
@@ -417,6 +441,47 @@ export default function InterviewFormPage({ params }) {
             <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={3} placeholder="Anything else worth capturing..." />
           </Field>
         </div>
+
+        {/* Attachments */}
+        {!isNew && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-text flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">📎</span>
+              Attachments
+            </h2>
+            <div className="bg-card border border-border rounded-lg p-5 shadow-sm space-y-3">
+              <input ref={attachInputRef} type="file" className="hidden"
+                accept="*/*" onChange={handleFileUpload} />
+              <button type="button" onClick={() => attachInputRef.current?.click()} disabled={uploadingFile}
+                className="w-full py-3 border-2 border-dashed border-border rounded-lg text-text-secondary hover:border-accent hover:text-accent transition-all text-sm font-medium">
+                {uploadingFile ? 'Uploading...' : 'Click to attach a file (PDF, doc, image, audio, video)'}
+              </button>
+              {attachments.length > 0 && (
+                <div className="space-y-2">
+                  {attachments.map(a => (
+                    <div key={a.id} className="flex items-center gap-3 bg-card-hover rounded-lg px-3 py-2">
+                      <span className="text-sm">
+                        {a.file_type?.startsWith('image') ? '🖼️' :
+                         a.file_type?.startsWith('video') ? '🎥' :
+                         a.file_type?.startsWith('audio') ? '🎙️' : '📄'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <a href={a.file_url} target="_blank" rel="noopener"
+                          className="text-sm text-text font-medium hover:text-accent transition truncate block">
+                          {a.file_name}
+                        </a>
+                        {a.summary && <p className="text-xs text-text-tertiary mt-0.5 line-clamp-1">{a.summary}</p>}
+                      </div>
+                      <span className="text-xs text-text-tertiary">{a.file_size ? `${Math.round(a.file_size / 1024)}KB` : ''}</span>
+                      <button type="button" onClick={() => handleDeleteAttachment(a.id)}
+                        className="text-xs text-red-500 hover:text-red-700 transition">Delete</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <button type="submit" disabled={saving}
           className="w-full py-3.5 bg-accent text-white font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40 shadow-sm sticky bottom-20 md:bottom-4">
