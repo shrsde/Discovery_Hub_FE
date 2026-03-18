@@ -137,10 +137,7 @@ export default function InterviewsListPage() {
                 className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
                 Select
               </button>
-              <button onClick={() => setShowSchedule(!showSchedule)}
-                className="text-sm px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-full hover:bg-indigo-100 transition-all active:scale-[0.97] font-medium">
-                Schedule
-              </button>
+              {/* Schedule button hidden until debugged */}
               <Link href="/interviews/new"
                 className="text-sm px-4 py-2 bg-accent text-white rounded-full hover:bg-accent-light transition-all active:scale-[0.97] font-semibold shadow-sm">
                 + New
