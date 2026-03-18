@@ -181,16 +181,18 @@ export default function FeedPage() {
 
   async function handleCreateMeeting(e) {
     e.preventDefault()
-    if (!meetingTitle.trim() || !meetingLink.trim()) return
+    if (!meetingTitle.trim()) return
     setCreatingMeeting(true)
     try {
-      await createMeeting({
+      const res = await createMeeting({
         title: meetingTitle.trim(),
         organizer: meetingOrganizer,
-        meet_link: meetingLink.trim(),
       })
+      // Open the auto-generated Meet link
+      if (res.data?.meet_link && res.data.meet_link !== 'https://meet.google.com/new') {
+        window.open(res.data.meet_link, '_blank')
+      }
       setMeetingTitle('')
-      setMeetingLink('')
       setShowMeetingModal(false)
       await loadFeed()
     } finally { setCreatingMeeting(false) }
@@ -774,23 +776,10 @@ export default function FeedPage() {
               </div>
               <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
                 placeholder="Meeting title — e.g. Weekly sync" />
-              <div>
-                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">
-                  Google Meet Link
-                </label>
-                <div className="flex gap-2">
-                  <input value={meetingLink} onChange={e => setMeetingLink(e.target.value)}
-                    placeholder="https://meet.google.com/abc-defg-hij" />
-                  <a href="https://meet.google.com/new" target="_blank" rel="noopener"
-                    className="shrink-0 px-3 py-2 bg-card border border-border rounded-full text-xs text-text-secondary hover:bg-card-hover transition">
-                    New link
-                  </a>
-                </div>
-                <p className="text-[10px] text-text-tertiary mt-1">Click &quot;New link&quot; to create a room, then copy the URL and paste it above. The recording bot needs the actual room link to join.</p>
-              </div>
-              <button type="submit" disabled={creatingMeeting || !meetingTitle.trim() || !meetingLink.trim()}
+              <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated and the recording bot will join automatically.</p>
+              <button type="submit" disabled={creatingMeeting || !meetingTitle.trim()}
                 className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
-                {creatingMeeting ? 'Creating...' : 'Create Meeting & Send Bot'}
+                {creatingMeeting ? 'Creating meeting...' : 'Create Meeting'}
               </button>
             </form>
           </div>
