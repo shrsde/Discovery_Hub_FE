@@ -397,22 +397,18 @@ export default function FeedPage() {
           {/* Meeting-specific UI */}
           {item.type === 'meeting' && (
             <div className="mt-2 space-y-2">
-              {/* Meet link + bot — show when no summary yet */}
+              {/* Meet link — show when no summary yet */}
               {!item.summary && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <a href="https://meet.google.com/new" target="_blank" rel="noopener"
-                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
-                    📞 Join Google Meet
-                  </a>
-                  <button onClick={async () => {
-                    try {
-                      await sendMeetingBot('https://meet.google.com/new')
-                      alert('Fireflies bot sent to join the meeting. It will record and transcribe automatically.')
-                    } catch (err) { alert('Bot failed: ' + err.message) }
-                  }}
-                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition font-medium">
-                    🤖 Send Recording Bot
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a href="https://meet.google.com/new" target="_blank" rel="noopener"
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
+                      📞 Join Google Meet
+                    </a>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full font-medium">
+                      🤖 Bot will auto-join & record
+                    </span>
+                  </div>
                 </div>
               )}
 
