@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings } from '@/lib/api'
+import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio } from '@/lib/api'
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
 import RichEditor, { RichContent } from '@/components/RichEditor'
 import { useAuth } from '@/lib/auth-context'
@@ -397,12 +397,23 @@ export default function FeedPage() {
           {/* Meeting-specific UI */}
           {item.type === 'meeting' && (
             <div className="mt-2 space-y-2">
-              {/* Meet link — show when no summary yet (meeting hasn't happened) */}
+              {/* Meet link + bot — show when no summary yet */}
               {!item.summary && (
-                <a href="https://meet.google.com/new" target="_blank" rel="noopener"
-                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
-                  📞 Join Google Meet
-                </a>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <a href="https://meet.google.com/new" target="_blank" rel="noopener"
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
+                    📞 Join Google Meet
+                  </a>
+                  <button onClick={async () => {
+                    try {
+                      await sendMeetingBot('https://meet.google.com/new')
+                      alert('Fireflies bot sent to join the meeting. It will record and transcribe automatically.')
+                    } catch (err) { alert('Bot failed: ' + err.message) }
+                  }}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition font-medium">
+                    🤖 Send Recording Bot
+                  </button>
+                </div>
               )}
 
               {/* Meeting recap — show after transcript is processed */}
@@ -453,9 +464,29 @@ export default function FeedPage() {
                       placeholder="e.g. 45 min" className="!text-xs" />
                   </div>
 
-                  {/* Transcript */}
+                  {/* Transcript — upload audio or paste */}
                   <div>
                     <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Transcript</label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-xs px-3 py-1.5 rounded-full bg-card border border-border text-text-secondary hover:bg-white hover:border-accent hover:text-accent transition cursor-pointer font-medium">
+                        🎙️ Upload recording
+                        <input type="file" className="hidden" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.webm"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            setProcessingTranscript(true)
+                            try {
+                              const res = await transcribeAudio(file)
+                              if (res.success) {
+                                setMeetingTranscript(res.transcript)
+                                if (res.duration) setMeetingDuration(res.duration)
+                              }
+                            } catch (err) { alert('Transcription failed: ' + err.message) }
+                            finally { setProcessingTranscript(false) }
+                          }} />
+                      </label>
+                      <span className="text-[10px] text-text-tertiary">or paste below</span>
+                    </div>
                     <textarea value={meetingTranscript} onChange={e => setMeetingTranscript(e.target.value)}
                       rows={6} placeholder="Paste the full meeting transcript here..." className="resize-none text-xs" />
                   </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getInterview, saveInterview, importTranscript, getAttachments, uploadAttachment, deleteAttachment } from '@/lib/api'
+import { getInterview, saveInterview, importTranscript, getAttachments, uploadAttachment, deleteAttachment, transcribeAudio } from '@/lib/api'
 import { CHANNELS, PAIN_CATEGORIES, FREQUENCIES, OUTSOURCED_OPTIONS, AUTOPILOT_OPTIONS, SCORE_DIMENSIONS, scoreColor } from '@/lib/constants'
 
 function DotSelector({ value, max = 5, onChange, label }) {
@@ -62,7 +62,9 @@ export default function InterviewFormPage({ params }) {
   const [importInterviewer, setImportInterviewer] = useState('Gibb')
   const [attachments, setAttachments] = useState([])
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const attachInputRef = useRef(null)
+  const audioInputRef = useRef(null)
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -131,6 +133,20 @@ export default function InterviewFormPage({ params }) {
 
   const scoreTotal = SCORE_DIMENSIONS.reduce((s, d) => s + (form[d.key] || 0), 0)
 
+  async function handleAudioUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setTranscribing(true)
+    try {
+      const res = await transcribeAudio(file)
+      if (res.success && res.transcript) {
+        setTranscript(res.transcript)
+      }
+    } catch (err) {
+      alert('Transcription failed: ' + err.message)
+    } finally { setTranscribing(false) }
+  }
+
   async function handleImport() {
     if (!transcript.trim()) return
     setImporting(true)
@@ -198,17 +214,16 @@ export default function InterviewFormPage({ params }) {
       {isNew && !showImport && (
         <button onClick={() => setShowImport(true)}
           className="w-full py-4 bg-card border-2 border-dashed border-border rounded-lg text-text-secondary hover:border-accent hover:text-accent transition-all text-sm font-medium">
-          Import from Transcript — paste a conversation transcript and AI fills the form
+          Import from Recording or Transcript — upload audio/video or paste text
         </button>
       )}
 
       {showImport && (
         <div className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-text">Import from Transcript</h2>
+            <h2 className="text-sm font-semibold text-text">Import Interview</h2>
             <button onClick={() => setShowImport(false)} className="text-text-tertiary text-sm hover:text-text transition">Cancel</button>
           </div>
-          <p className="text-xs text-text-tertiary">Paste a raw transcript below. AI will extract all interview fields — company, pain points, quotes, workflow, signals — and pre-fill the form. You can review and edit everything before saving.</p>
 
           <div className="flex gap-2">
             {['Wes', 'Gibb'].map(a => (
@@ -221,8 +236,29 @@ export default function InterviewFormPage({ params }) {
             ))}
           </div>
 
+          {/* Audio/Video upload */}
+          <div className="bg-card-hover border border-border rounded-lg p-4 space-y-2">
+            <div className="text-xs font-semibold text-text">Upload Recording</div>
+            <p className="text-[11px] text-text-tertiary">Upload an audio or video file — AI will transcribe it automatically, then extract interview data.</p>
+            <input ref={audioInputRef} type="file" className="hidden"
+              accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.webm,.ogg" onChange={handleAudioUpload} />
+            <button type="button" onClick={() => audioInputRef.current?.click()} disabled={transcribing}
+              className="px-4 py-2 bg-card border border-border rounded-full text-sm font-medium text-text-secondary hover:bg-white hover:border-accent hover:text-accent transition-all disabled:opacity-40">
+              {transcribing ? 'Transcribing audio...' : '🎙️ Choose audio/video file'}
+            </button>
+            {transcribing && (
+              <p className="text-[11px] text-accent">Processing with Whisper — this may take a moment for longer recordings...</p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-text-tertiary">or paste transcript</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
           <textarea value={transcript} onChange={e => setTranscript(e.target.value)}
-            rows={10} placeholder="Paste the full interview transcript here..."
+            rows={8} placeholder="Paste the full interview transcript here..."
             className="resize-none" />
 
           <button type="button" onClick={handleImport} disabled={importing || !transcript.trim()}
