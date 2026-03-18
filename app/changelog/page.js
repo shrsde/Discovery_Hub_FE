@@ -2,6 +2,19 @@
 
 const VERSIONS = [
   {
+    version: '1.6',
+    date: 'March 17, 2026',
+    title: 'Interviews Redesign, Delete, Timeline Navigation',
+    summary: 'Interviews page redesigned with timeline sidebar, date grouping, and select-to-delete. Interview scheduler built (staging). Select mode for bulk interview deletion.',
+    features: [
+      'Interviews page: timeline sidebar with date + interviewee navigation',
+      'Interviews grouped by date (upcoming/completed sections)',
+      'Select mode: bulk delete interviews with confirmation',
+      'Interview scheduler with auto Meet link (staging — hidden for debug)',
+      'DELETE endpoint for interviews API',
+    ],
+  },
+  {
     version: '1.5',
     date: 'March 17, 2026',
     title: 'Rich Editor, Mentions, News Room, Automated Meetings',
