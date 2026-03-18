@@ -126,6 +126,7 @@ export default function FeedPage() {
   const [meetingTitle, setMeetingTitle] = useState('')
   const [meetingOrganizer, setMeetingOrganizer] = useState('Wes')
   const [creatingMeeting, setCreatingMeeting] = useState(false)
+  const [meetingLink, setMeetingLink] = useState('')
   const [addingTranscriptTo, setAddingTranscriptTo] = useState(null)
   const [meetingTranscript, setMeetingTranscript] = useState('')
   const [meetingDuration, setMeetingDuration] = useState('')
@@ -180,14 +181,16 @@ export default function FeedPage() {
 
   async function handleCreateMeeting(e) {
     e.preventDefault()
-    if (!meetingTitle.trim()) return
+    if (!meetingTitle.trim() || !meetingLink.trim()) return
     setCreatingMeeting(true)
     try {
-      const res = await createMeeting({ title: meetingTitle.trim(), organizer: meetingOrganizer })
-      if (res.success && res.data.meet_link) {
-        window.open(res.data.meet_link, '_blank')
-      }
+      await createMeeting({
+        title: meetingTitle.trim(),
+        organizer: meetingOrganizer,
+        meet_link: meetingLink.trim(),
+      })
       setMeetingTitle('')
+      setMeetingLink('')
       setShowMeetingModal(false)
       await loadFeed()
     } finally { setCreatingMeeting(false) }
@@ -401,7 +404,7 @@ export default function FeedPage() {
               {!item.summary && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <a href="https://meet.google.com/new" target="_blank" rel="noopener"
+                    <a href={item.media_url || 'https://meet.google.com/new'} target="_blank" rel="noopener"
                       className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
                       📞 Join Google Meet
                     </a>
@@ -771,9 +774,23 @@ export default function FeedPage() {
               </div>
               <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
                 placeholder="Meeting title — e.g. Weekly sync" />
-              <button type="submit" disabled={creatingMeeting || !meetingTitle.trim()}
+              <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">
+                  Google Meet Link
+                </label>
+                <div className="flex gap-2">
+                  <input value={meetingLink} onChange={e => setMeetingLink(e.target.value)}
+                    placeholder="https://meet.google.com/abc-defg-hij" />
+                  <a href="https://meet.google.com/new" target="_blank" rel="noopener"
+                    className="shrink-0 px-3 py-2 bg-card border border-border rounded-full text-xs text-text-secondary hover:bg-card-hover transition">
+                    New link
+                  </a>
+                </div>
+                <p className="text-[10px] text-text-tertiary mt-1">Click &quot;New link&quot; to create a room, then copy the URL and paste it above. The recording bot needs the actual room link to join.</p>
+              </div>
+              <button type="submit" disabled={creatingMeeting || !meetingTitle.trim() || !meetingLink.trim()}
                 className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
-                {creatingMeeting ? 'Creating...' : 'Create & Open Google Meet'}
+                {creatingMeeting ? 'Creating...' : 'Create Meeting & Send Bot'}
               </button>
             </form>
           </div>
