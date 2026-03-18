@@ -52,7 +52,7 @@ function MediaPreview({ item }) {
         </button>
         {expanded && (
           <div className="mt-2 rounded-lg overflow-hidden border border-border">
-            <img src={item.media_url} alt={item.media_name} className="max-w-full max-h-80 object-contain" />
+            <img src={item.media_url} alt={item.media_name} className="w-full rounded-lg" />
           </div>
         )}
       </div>
@@ -92,8 +92,8 @@ function TaggedText({ text }) {
   return (
     <span>
       {parts.map((part, i) => {
-        if (part === '@Wes') return <span key={i} className="font-semibold text-wes bg-wes/10 px-1 rounded">@Wes</span>
-        if (part === '@Gibb') return <span key={i} className="font-semibold text-gibb bg-gibb/10 px-1 rounded">@Gibb</span>
+        if (part === '@Wes') return <span key={i} className="font-semibold text-wes bg-[#EFF3F8] px-2 py-0.5 rounded-full text-[13px] inline-block">@Wes</span>
+        if (part === '@Gibb') return <span key={i} className="font-semibold text-gibb bg-[#F3EEFA] px-2 py-0.5 rounded-full text-[13px] inline-block">@Gibb</span>
         return <span key={i}>{part}</span>
       })}
     </span>
@@ -132,6 +132,7 @@ export default function FeedPage() {
   const [meetingDuration, setMeetingDuration] = useState('')
   const [meetingParticipants, setMeetingParticipants] = useState(['Wes', 'Gibb'])
   const [processingTranscript, setProcessingTranscript] = useState(false)
+  const [selectedDay, setSelectedDay] = useState(null)
   const fileInputRef = useRef(null)
 
   async function loadFeed() {
@@ -243,8 +244,8 @@ export default function FeedPage() {
   // Extract tags from text
   function extractTags(text) {
     const tags = []
-    if (text.includes('@Wes')) tags.push('Wes')
-    if (text.includes('@Gibb')) tags.push('Gibb')
+    if (text.includes('@Wes') || text.includes('data-mention="Wes"')) tags.push('Wes')
+    if (text.includes('@Gibb') || text.includes('data-mention="Gibb"')) tags.push('Gibb')
     return tags
   }
 
@@ -540,9 +541,12 @@ export default function FeedPage() {
     )
   }
 
+  const dayKeys = Object.keys(grouped)
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold text-text">Feed</h1>
         <div className="flex items-center gap-2">
           {selectMode ? (
@@ -551,209 +555,174 @@ export default function FeedPage() {
               {selectedPosts.size > 0 && (
                 <>
                   <button onClick={handleArchiveSelected}
-                    className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
-                    Archive
-                  </button>
+                    className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">Archive</button>
                   <button onClick={handleDeleteSelected}
-                    className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition">
-                    Delete
-                  </button>
+                    className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition">Delete</button>
                 </>
               )}
               <button onClick={() => { setSelectMode(false); setSelectedPosts(new Set()) }}
-                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
-                Cancel
-              </button>
+                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">Cancel</button>
             </>
           ) : (
             <>
               <button onClick={() => setShowMeetingModal(true)}
                 className="text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
-                📞 Create Meeting
+                📞 Meeting
               </button>
               <button onClick={() => setSelectMode(true)}
-                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
-                Select
-              </button>
+                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">Select</button>
             </>
           )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="space-y-3">
-        {/* Search */}
+      {/* Filters row */}
+      <div className="flex items-center gap-2 flex-wrap mb-4">
         <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search feed..." className="!rounded-full" />
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* View tabs */}
-          <div className="flex gap-1">
-            {[
-              { value: 'active', label: 'Active' },
-              { value: 'archived', label: 'Archived' },
-              { value: 'all', label: 'All' },
-            ].map(v => (
-              <button key={v.value} onClick={() => { setView(v.value); setSelectedPosts(new Set()) }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  view === v.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
-                }`}>
-                {v.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="h-4 w-px bg-border" />
-
-          {/* Type filter */}
-          <select value={filterType} onChange={e => setFilterType(e.target.value)}
-            className="!w-auto !rounded-full text-xs !py-1.5">
-            <option value="all">All types</option>
-            {FEED_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
-            ))}
-          </select>
-
-          {/* Sort */}
-          <select value={sortOrder} onChange={e => setSortOrder(e.target.value)}
-            className="!w-auto !rounded-full text-xs !py-1.5">
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
-
-          {(searchQuery || filterType !== 'all') && (
-            <button onClick={() => { setSearchQuery(''); setFilterType('all') }}
-              className="text-xs text-text-tertiary hover:text-text transition">
-              Clear filters
-            </button>
-          )}
+          placeholder="Search feed..." className="!rounded-full flex-1 !text-xs" />
+        <div className="flex gap-1">
+          {[
+            { value: 'active', label: 'Active' },
+            { value: 'archived', label: 'Archived' },
+            { value: 'all', label: 'All' },
+          ].map(v => (
+            <button key={v.value} onClick={() => { setView(v.value); setSelectedPosts(new Set()) }}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                view === v.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
+              }`}>{v.label}</button>
+          ))}
         </div>
+        <select value={filterType} onChange={e => setFilterType(e.target.value)}
+          className="!w-auto !rounded-full text-xs !py-1.5">
+          <option value="all">All types</option>
+          {FEED_TYPES.map(t => (
+            <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
+          ))}
+        </select>
+        {(searchQuery || filterType !== 'all') && (
+          <button onClick={() => { setSearchQuery(''); setFilterType('all') }}
+            className="text-xs text-text-tertiary hover:text-text transition">Clear</button>
+        )}
       </div>
 
-      {/* Composer (only show on active view) */}
+      {/* Sticky composer */}
       {view !== 'archived' && (
-        <form onSubmit={handlePost} className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-sm">
-          <div className="flex gap-2">
-            {['Wes', 'Gibb'].map(a => (
-              <button key={a} type="button" onClick={() => setAuthor(a)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
-                  author === a
-                    ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
-                    : 'bg-transparent border border-border text-text-secondary hover:bg-card-hover'
-                }`}>{a}</button>
-            ))}
-          </div>
+        <div className="sticky top-14 z-30 bg-[#fafafa] pb-4">
+          <form onSubmit={handlePost} className="bg-card border border-border rounded-lg p-4 shadow-sm space-y-3">
+            <RichEditor content={text} onChange={setText}
+              placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
 
-          <div className="flex flex-wrap gap-1.5">
-            {FEED_TYPES.map(t => (
-              <button key={t.value} type="button" onClick={() => setType(t.value)}
-                className={`px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-all ${
-                  type === t.value ? t.color : 'bg-transparent border-border text-text-tertiary hover:text-text-secondary'
-                }`}>{t.emoji} {t.label}</button>
-            ))}
-          </div>
+            {mediaUrl && (
+              <div className="flex items-center gap-2 bg-card-hover rounded-lg px-3 py-2">
+                <span className="text-sm">
+                  {mediaType === 'image' && '🖼️'}
+                  {mediaType === 'video' && '🎥'}
+                  {mediaType === 'video_link' && '🔗'}
+                  {mediaType === 'document' && '📄'}
+                </span>
+                <span className="text-xs text-text-secondary flex-1 truncate">{mediaName || mediaUrl}</span>
+                <button type="button" onClick={clearMedia} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+              </div>
+            )}
 
-          <RichEditor content={text} onChange={setText}
-            placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
-
-          {/* Media attachment preview */}
-          {mediaUrl && (
-            <div className="flex items-center gap-2 bg-card-hover rounded-lg px-3 py-2">
-              <span className="text-sm">
-                {mediaType === 'image' && '🖼️'}
-                {mediaType === 'video' && '🎥'}
-                {mediaType === 'video_link' && '🔗'}
-                {mediaType === 'document' && '📄'}
-              </span>
-              <span className="text-xs text-text-secondary flex-1 truncate">
-                {mediaName || mediaUrl}
-              </span>
-              <button type="button" onClick={clearMedia} className="text-xs text-red-500 hover:text-red-700">Remove</button>
-            </div>
-          )}
-
-          {/* Media options */}
-          {!mediaUrl && (
-            <div>
-              {!showMediaOptions ? (
-                <button type="button" onClick={() => setShowMediaOptions(true)}
-                  className="text-xs text-text-tertiary hover:text-text-secondary transition">
-                  + Add attachment (image, document, video link)
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              {!mediaUrl && (
+                <>
                   <input ref={fileInputRef} type="file" className="hidden"
                     accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
                     onChange={handleFileUpload} />
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                    className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
-                    {uploading ? 'Uploading...' : '📎 Upload file'}
+                    className="text-xs px-3 py-1.5 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">
+                    {uploading ? 'Uploading...' : '📎 Attach'}
                   </button>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <input value={videoLink} onChange={e => setVideoLink(e.target.value)}
-                      placeholder="Paste YouTube/Vimeo/Loom link"
-                      className="!w-52 text-xs" />
-                    <button type="button" onClick={handleAddVideoLink} disabled={!videoLink.trim()}
-                      className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition disabled:opacity-40">
-                      Add
-                    </button>
+                      placeholder="Video link" className="!w-36 text-xs !py-1" />
+                    {videoLink.trim() && (
+                      <button type="button" onClick={handleAddVideoLink}
+                        className="text-xs px-2 py-1 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">Add</button>
+                    )}
                   </div>
-                  <button type="button" onClick={() => setShowMediaOptions(false)}
-                    className="text-xs text-text-tertiary hover:text-text-secondary">Cancel</button>
-                </div>
+                </>
               )}
-            </div>
-          )}
-
-          <div className="flex items-center gap-3">
-            {interviews.length > 0 && (
-              <select value={linkedId} onChange={e => setLinkedId(e.target.value)}
-                className="!w-auto text-xs !rounded-full">
-                <option value="">Link interview (optional)</option>
-                {interviews.map(i => (
-                  <option key={i.id} value={i.id}>{i.company} — {i.interviewee_name}</option>
+              <select value={type} onChange={e => setType(e.target.value)}
+                className="!w-auto !rounded-full text-xs !py-1.5">
+                {FEED_TYPES.map(t => (
+                  <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
                 ))}
               </select>
+              <button type="submit" disabled={posting || !text.trim()}
+                className="ml-auto px-5 py-2 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40 shadow-sm">
+                {posting ? 'Posting...' : 'Post'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Main content with timeline sidebar */}
+      <div className="flex gap-6">
+        {/* Timeline sidebar — desktop only */}
+        <div className="hidden md:block w-28 shrink-0">
+          <div className="sticky top-40 space-y-1 max-h-[60vh] overflow-y-auto">
+            {pinned.length > 0 && (
+              <button onClick={() => { setSelectedDay(null); document.getElementById('pinned')?.scrollIntoView({ behavior: 'smooth' }) }}
+                className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-semibold text-amber-600 hover:bg-amber-50 transition">
+                📌 Pinned
+              </button>
             )}
-            <button type="submit" disabled={posting || !text.trim()}
-              className="ml-auto px-5 py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40 shadow-sm">
-              {posting ? 'Posting...' : 'Post'}
-            </button>
+            {dayKeys.map(day => {
+              const shortDay = new Date(grouped[day][0].created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              const weekday = new Date(grouped[day][0].created_at).toLocaleDateString('en-US', { weekday: 'short' })
+              return (
+                <button key={day} onClick={() => {
+                  setSelectedDay(day)
+                  document.getElementById(`day-${day}`)?.scrollIntoView({ behavior: 'smooth' })
+                }}
+                  className={`w-full text-left px-2 py-1.5 rounded-lg transition ${
+                    selectedDay === day ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
+                  }`}>
+                  <div className="text-[11px] font-semibold">{shortDay}</div>
+                  <div className="text-[10px] opacity-70">{weekday}</div>
+                </button>
+              )
+            })}
           </div>
-        </form>
-      )}
+        </div>
 
-      {loading ? (
-        <div className="text-text-tertiary text-center py-10">Loading...</div>
-      ) : (
-        <>
-          {/* Pinned section */}
-          {pinned.length > 0 && (
-            <div>
-              <div className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">📌 Pinned</div>
-              <div className="space-y-2">
-                {pinned.map(item => <FeedItem key={item.id} item={item} />)}
-              </div>
-            </div>
+        {/* Feed content */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {loading ? (
+            <div className="text-text-tertiary text-center py-10">Loading...</div>
+          ) : (
+            <>
+              {pinned.length > 0 && (
+                <div id="pinned">
+                  <div className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">📌 Pinned</div>
+                  <div className="space-y-2">
+                    {pinned.map(item => <FeedItem key={item.id} item={item} />)}
+                  </div>
+                </div>
+              )}
+
+              {Object.entries(grouped).map(([day, items]) => (
+                <div key={day} id={`day-${day}`}>
+                  <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-2 mt-4">{day}</div>
+                  <div className="space-y-2">
+                    {items.map(item => <FeedItem key={item.id} item={item} />)}
+                  </div>
+                </div>
+              ))}
+
+              {feed.length === 0 && (
+                <p className="text-text-tertiary text-center py-10">
+                  {view === 'archived' ? 'No archived posts.' : 'No posts yet. Start the conversation above.'}
+                </p>
+              )}
+            </>
           )}
-
-          {/* Feed items grouped by day */}
-          {Object.entries(grouped).map(([day, items]) => (
-            <div key={day}>
-              <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-2 mt-4">{day}</div>
-              <div className="space-y-2">
-                {items.map(item => <FeedItem key={item.id} item={item} />)}
-              </div>
-            </div>
-          ))}
-
-          {feed.length === 0 && (
-            <p className="text-text-tertiary text-center py-10">
-              {view === 'archived' ? 'No archived posts.' : 'No posts yet. Start the conversation above.'}
-            </p>
-          )}
-        </>
-      )}
+        </div>
+      </div>
 
       {/* Meeting creation modal */}
       {showMeetingModal && (

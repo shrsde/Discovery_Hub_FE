@@ -44,6 +44,15 @@ select option {
   color: #0d0e0e;
 }
 
+/* Mention tags */
+.mention-tag {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 1px 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
 /* Tiptap editor overrides */
 .tiptap {
   outline: none;
