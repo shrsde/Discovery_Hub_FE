@@ -48,12 +48,12 @@ const NEWS_CATEGORY_COLORS = {
 }
 
 const NAV_ITEMS = [
-  { label: 'New Interview', href: '/interviews/new', icon: '🎙️' },
-  { label: 'AI Hub', href: 'https://dropclaw.vercel.app', icon: '🤖', external: true },
-  { label: 'Recoup', href: '/', icon: '💰' },
-  { label: 'Feed', href: '/feed', icon: '📋' },
-  { label: 'Tasks', href: '/tasks', icon: '✅' },
-  { label: 'Meetings', href: '/meetings', icon: '📞' },
+  { label: 'New Interview', href: '/interviews/new', icon: '◇' },
+  { label: 'AI Hub', href: 'https://dropclaw.vercel.app', icon: '⬡', external: true },
+  { label: 'Recoup', href: '/', icon: '△' },
+  { label: 'Feed', href: '/feed', icon: '◈' },
+  { label: 'Tasks', href: '/tasks', icon: '▸' },
+  { label: 'Meetings', href: '/meetings', icon: '◎' },
 ]
 
 export default function Dashboard() {
@@ -152,14 +152,17 @@ export default function Dashboard() {
       {/* 2. Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Interviews', value: interviews.length },
-          { label: 'Pain Points', value: totalPainPoints },
-          { label: 'Open Tasks', value: openTasks },
-          { label: 'Avg Score', value: `${avgScore}/30`, colorClass: scoreColor(avgScore) },
+          { label: 'Interviews', value: interviews.length, glyph: '◇' },
+          { label: 'Pain Points', value: totalPainPoints, glyph: '◆' },
+          { label: 'Open Tasks', value: openTasks, glyph: '▸' },
+          { label: 'Avg Score', value: `${avgScore}/30`, colorClass: scoreColor(avgScore), glyph: '⬡' },
         ].map(s => (
-          <div key={s.label} className="bg-card border border-border rounded-lg p-4 shadow-sm">
-            <div className="text-text-tertiary text-[11px] font-semibold uppercase tracking-wider">{s.label}</div>
-            <div className={`text-[28px] font-extrabold mt-1 ${s.colorClass || 'text-text'}`}>{s.value}</div>
+          <div key={s.label} className="glass rounded-2xl p-4 card-lift">
+            <div className="flex items-center gap-1.5">
+              <span className="text-text-tertiary text-xs">{s.glyph}</span>
+              <span className="section-label">{s.label}</span>
+            </div>
+            <div className={`text-[28px] font-extrabold mt-1 tracking-tight ${s.colorClass || 'text-text'}`}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -168,7 +171,7 @@ export default function Dashboard() {
       {(upcoming.length > 0 || recentCompleted.length > 0) && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Interviews</h2>
+            <h2 className="section-label">Interviews</h2>
             <Link href="/interviews" className="text-xs text-accent hover:underline font-medium">View all →</Link>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
@@ -178,7 +181,7 @@ export default function Dashboard() {
               {upcoming.length === 0 ? (
                 <p className="text-text-tertiary text-xs py-4">No upcoming interviews</p>
               ) : upcoming.map(i => (
-                <div key={i.id} className="bg-card border border-indigo-200 rounded-lg p-3.5 hover:shadow hover:-translate-y-px transition-all">
+                <div key={i.id} className="glass rounded-2xl p-3.5 gradient-blue card-lift">
                   <div className="flex items-center gap-3">
                     <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${i.interviewer === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
                       {i.interviewer?.[0]}
@@ -214,7 +217,7 @@ export default function Dashboard() {
                 <p className="text-text-tertiary text-xs py-4">No completed interviews yet</p>
               ) : recentCompleted.map(i => (
                 <Link key={i.id} href={`/interviews/${i.id}`}
-                  className="block bg-card border border-border rounded-lg p-3.5 hover:shadow hover:-translate-y-px transition-all">
+                  className="block glass rounded-2xl p-3.5 card-lift">
                   <div className="flex items-center gap-3">
                     <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${i.interviewer === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
                       {i.interviewer?.[0]}
@@ -239,7 +242,7 @@ export default function Dashboard() {
 
       {/* 4. Pain Point Landscape */}
       <section>
-        <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-3">Pain Point Landscape</h2>
+        <h2 className="section-label mb-3">Pain Point Landscape</h2>
         {scatterData.length > 0 ? (
           <>
             <div className="flex flex-wrap gap-3 mb-3">
@@ -250,7 +253,7 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-            <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+            <div className="glass rounded-2xl p-4">
               <ResponsiveContainer width="100%" height={300}>
                 <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 20 }}>
                   <XAxis type="number" dataKey="x" name="Frequency" domain={[0, 6]}
@@ -282,7 +285,7 @@ export default function Dashboard() {
             </div>
           </>
         ) : (
-          <div className="bg-card border border-border rounded-lg p-8 text-center shadow-sm">
+          <div className="glass rounded-2xl p-8 text-center">
             <p className="text-text-tertiary text-sm">No pain point data yet. Complete interviews to populate the landscape.</p>
           </div>
         )}
@@ -291,14 +294,14 @@ export default function Dashboard() {
       {/* 5. News + AI Headlines */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Industry News</h2>
+          <h2 className="section-label">Industry News</h2>
           <Link href="/news" className="text-xs text-accent hover:underline font-medium">View all →</Link>
         </div>
         {news.length > 0 ? (
           <div className="space-y-2">
             {news.slice(0, 5).map((article, i) => (
               <a key={i} href={article.link} target="_blank" rel="noopener"
-                className="block bg-card border border-border rounded-lg p-3.5 hover:shadow hover:-translate-y-px transition-all">
+                className="block glass rounded-2xl p-3.5 card-lift">
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-text text-sm line-clamp-1">{article.title}</h3>
@@ -314,7 +317,7 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="bg-card border border-border rounded-lg p-6 text-center shadow-sm">
+          <div className="glass rounded-2xl p-6 text-center">
             <p className="text-text-tertiary text-sm">No news available.</p>
           </div>
         )}
@@ -322,12 +325,12 @@ export default function Dashboard() {
 
       {/* 6. Quick Nav Tools */}
       <section>
-        <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-3">Quick Nav</h2>
+        <h2 className="section-label mb-3">Quick Nav</h2>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
           {NAV_ITEMS.map(item => {
             const inner = (
-              <div className="bg-card border border-border rounded-lg p-4 text-center hover:shadow hover:-translate-y-px transition-all cursor-pointer">
-                <div className="text-2xl mb-1.5">{item.icon}</div>
+              <div className="glass rounded-2xl p-4 text-center card-lift cursor-pointer">
+                <div className="text-xl mb-1.5 text-text-secondary">{item.icon}</div>
                 <div className="text-xs font-medium text-text">{item.label}</div>
               </div>
             )

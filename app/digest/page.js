@@ -31,7 +31,7 @@ export default function DigestPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-semibold text-text">Digest</h1>
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-sm">
+      <div className="glass rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex gap-2">
             {['Wes', 'Gibb'].map(a => (
@@ -58,7 +58,7 @@ export default function DigestPage() {
 
       <div className="space-y-4">
         {digests.map((d, idx) => (
-          <div key={d.id} className={`border rounded-lg p-5 shadow-sm ${idx === 0 ? 'bg-blue-50 border-blue-200' : 'bg-card border-border'}`}>
+          <div key={d.id} className={`glass rounded-2xl p-5 ${idx === 0 ? 'bg-blue-50/50 border-blue-200' : ''}`}>
             <div className="flex items-center gap-2 mb-3">
               <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wider ${
                 d.trigger_type === 'auto' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-600 border-blue-200'

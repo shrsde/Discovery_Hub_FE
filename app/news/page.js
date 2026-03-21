@@ -74,7 +74,7 @@ export default function NewsPage() {
   function ArticleCard({ article, featured = false }) {
     return (
       <a href={article.link} target="_blank" rel="noopener"
-        className={`block bg-card border border-border rounded-lg overflow-hidden hover:shadow hover:-translate-y-px transition-all ${featured ? '' : ''}`}>
+        className={`block glass rounded-2xl overflow-hidden card-lift ${featured ? '' : ''}`}>
         {featured && article.thumbnail && (
           <img src={article.thumbnail} alt="" className="w-full h-36 object-cover bg-card-hover" />
         )}
@@ -142,7 +142,7 @@ export default function NewsPage() {
           {/* Articles grouped by date */}
           {Object.entries(grouped).map(([day, dayArticles]) => (
             <section key={day}>
-              <h2 className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-2 mt-4 border-b border-border pb-1">
+              <h2 className="section-label mb-2 mt-4 border-b border-white/20 pb-1">
                 {day}
               </h2>
               <div className="space-y-2">

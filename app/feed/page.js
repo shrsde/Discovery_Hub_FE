@@ -356,8 +356,8 @@ export default function FeedPage() {
     }
 
     return (
-      <div className={`bg-card border rounded-lg p-4 flex items-start gap-3 shadow-sm transition-all ${
-        isSelected ? 'border-accent ring-2 ring-accent/20' : item.pinned ? 'border-amber-300 bg-amber-50/50' : 'border-border'
+      <div className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all ${
+        isSelected ? 'border-accent ring-2 ring-accent/20' : item.pinned ? 'border-amber-300 bg-amber-50/50' : ''
       }`}>
         {selectMode && (
           <button onClick={() => toggleSelect(item.id)}
@@ -421,7 +421,7 @@ export default function FeedPage() {
 
               {/* Meeting recap — show after transcript is processed */}
               {item.summary && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-2">
+                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Meeting Recap</div>
                     <span className="text-[10px] text-indigo-400 bg-indigo-100 px-2 py-0.5 rounded-full">Completed</span>
@@ -438,12 +438,12 @@ export default function FeedPage() {
                 </button>
               )}
               {addingTranscriptTo === item.id && (
-                <div className="bg-card-hover border border-border rounded-lg p-3 space-y-3">
+                <div className="glass rounded-2xl p-3 space-y-3">
                   <div className="text-xs font-semibold text-text">Post-Meeting Recap</div>
 
                   {/* Participants */}
                   <div>
-                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Participants</label>
+                    <label className="section-label block mb-1">Participants</label>
                     <div className="flex gap-1.5">
                       {['Wes', 'Gibb'].map(p => (
                         <button key={p} type="button" onClick={() => {
@@ -462,14 +462,14 @@ export default function FeedPage() {
 
                   {/* Duration */}
                   <div>
-                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Call Duration</label>
+                    <label className="section-label block mb-1">Call Duration</label>
                     <input value={meetingDuration} onChange={e => setMeetingDuration(e.target.value)}
                       placeholder="e.g. 45 min" className="!text-xs" />
                   </div>
 
                   {/* Transcript — upload audio or paste */}
                   <div>
-                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Transcript</label>
+                    <label className="section-label block mb-1">Transcript</label>
                     <div className="flex items-center gap-2 mb-2">
                       <label className="text-xs px-3 py-1.5 rounded-full bg-card border border-border text-text-secondary hover:bg-white hover:border-accent hover:text-accent transition cursor-pointer font-medium">
                         🎙️ Upload recording
@@ -609,7 +609,7 @@ export default function FeedPage() {
       {/* Sticky composer */}
       {view !== 'archived' && (
         <div className="sticky top-14 z-30 bg-[#fafafa] pb-4">
-          <form onSubmit={handlePost} className="bg-card border border-border rounded-lg p-4 shadow-sm space-y-3">
+          <form onSubmit={handlePost} className="glass rounded-2xl p-4 space-y-3">
             <RichEditor content={text} onChange={setText}
               placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
 
@@ -699,7 +699,7 @@ export default function FeedPage() {
             <>
               {pinned.length > 0 && (
                 <div id="pinned">
-                  <div className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">📌 Pinned</div>
+                  <div className="section-label text-amber-600 mb-2">📌 Pinned</div>
                   <div className="space-y-2">
                     {pinned.map(item => <FeedItem key={item.id} item={item} />)}
                   </div>
@@ -708,7 +708,7 @@ export default function FeedPage() {
 
               {Object.entries(grouped).map(([day, items]) => (
                 <div key={day} id={`day-${day}`}>
-                  <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-2 mt-4">{day}</div>
+                  <div className="section-label mb-2 mt-4">{day}</div>
                   <div className="space-y-2">
                     {items.map(item => <FeedItem key={item.id} item={item} />)}
                   </div>
@@ -727,7 +727,7 @@ export default function FeedPage() {
 
       {/* Meeting creation modal */}
       <Dialog open={showMeetingModal} onOpenChange={setShowMeetingModal}>
-        <DialogContent className="bg-white rounded-xl border border-border shadow-xl w-full max-w-sm p-5 space-y-4">
+        <DialogContent className="glass-strong rounded-xl border-0 shadow-xl w-full max-w-sm p-5 space-y-4">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold text-text">Create Meeting</DialogTitle>
           </DialogHeader>

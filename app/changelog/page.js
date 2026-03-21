@@ -2,6 +2,24 @@
 
 const VERSIONS = [
   {
+    version: '1.8',
+    date: 'March 21, 2026',
+    title: 'Liquid Glass UI + Fireflies Auto-Join + Meeting Transcription Flow',
+    summary: 'Complete design system overhaul to Liquid Glass with frosted glass cards, backdrop blur, geometric glyphs, and refined typography. Fireflies now auto-joins all meetings regardless of creator. Completed meetings auto-post to feed with AI summary.',
+    features: [
+      'Liquid Glass design: frosted glass cards with backdrop-blur and translucent borders across all pages',
+      'Geometric glyphs replace emojis throughout the app',
+      'Refined nav: uppercase tracking, glass blur, monospace section labels',
+      'Staggered entrance animations and card hover lift effects',
+      'Gradient accent borders on cards (blue, green, amber, red, purple)',
+      'Fireflies bot auto-joins all Google Meet calls as calendar attendee',
+      'Meeting transcription auto-posts to feed with AI summary, duration, and tagged attendees',
+      'Interview completion auto-posts to feed with key signals and pain points',
+      'Push notifications for both meeting and interview completions',
+      'Client-side SWR cache for near-instant page transitions',
+    ],
+  },
+  {
     version: '1.7',
     date: 'March 21, 2026',
     title: 'Native Push Notifications + Ingest Webhook',
@@ -117,7 +135,7 @@ export default function ChangelogPage() {
 
       <div className="space-y-6">
         {VERSIONS.map((v, i) => (
-          <div key={v.version} className={`bg-card border rounded-lg p-5 shadow-sm ${i === 0 ? 'border-blue-200 bg-blue-50/30' : 'border-border'}`}>
+          <div key={v.version} className={`glass rounded-2xl p-5 ${i === 0 ? 'border-blue-200 bg-blue-50/30' : ''}`}>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-white font-semibold">v{v.version}</span>
               <span className="text-xs text-text-tertiary">{v.date}</span>

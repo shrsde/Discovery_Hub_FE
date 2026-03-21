@@ -127,7 +127,7 @@ export default function TasksPage() {
               <div className="px-2 pb-2 space-y-2">
                 {/* Add task inline */}
                 {addingTo === col.status && (
-                  <div className="bg-white rounded-lg border border-border p-2 shadow-sm">
+                  <div className="glass-strong rounded-2xl border-0 p-2">
                     <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
                       placeholder="Task title..." autoFocus
                       onKeyDown={e => { if (e.key === 'Enter') handleAddTask(col.status); if (e.key === 'Escape') setAddingTo(null) }}
@@ -149,7 +149,7 @@ export default function TasksPage() {
                       draggable
                       onDragStart={e => handleDragStart(e, task.id)}
                       onClick={() => setEditingTask(task)}
-                      className="bg-white rounded-lg border border-border p-3 shadow-sm cursor-pointer hover:shadow hover:-translate-y-px transition-all">
+                      className="glass rounded-2xl p-3 cursor-pointer card-lift">
                       <p className="text-sm font-medium text-text leading-snug">{task.title}</p>
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${ps.color}`}>{ps.label}</span>
@@ -181,20 +181,20 @@ export default function TasksPage() {
           {editingTask && (
             <>
               <div>
-                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Title</label>
+                <label className="section-label block mb-1">Title</label>
                 <input defaultValue={editingTask.title}
                   onBlur={e => handleUpdateTask(editingTask.id, { title: e.target.value })} />
               </div>
 
               <div>
-                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Description</label>
+                <label className="section-label block mb-1">Description</label>
                 <textarea defaultValue={editingTask.description || ''} rows={3}
                   onBlur={e => handleUpdateTask(editingTask.id, { description: e.target.value })} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Assignee</label>
+                  <label className="section-label block mb-1">Assignee</label>
                   <div className="flex gap-1">
                     {['Wes', 'Gibb'].map(a => (
                       <button key={a} onClick={() => handleUpdateTask(editingTask.id, { assignee: a })}
@@ -207,14 +207,14 @@ export default function TasksPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Due Date</label>
+                  <label className="section-label block mb-1">Due Date</label>
                   <input type="date" defaultValue={editingTask.due_date || ''}
                     onChange={e => handleUpdateTask(editingTask.id, { due_date: e.target.value })} />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Priority</label>
+                <label className="section-label block mb-1">Priority</label>
                 <div className="flex gap-1">
                   {PRIORITIES.map(p => (
                     <button key={p.value} onClick={() => handleUpdateTask(editingTask.id, { priority: p.value })}
@@ -226,7 +226,7 @@ export default function TasksPage() {
               </div>
 
               <div>
-                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Status</label>
+                <label className="section-label block mb-1">Status</label>
                 <div className="flex gap-1">
                   {COLUMNS.map(c => (
                     <button key={c.status} onClick={() => handleUpdateTask(editingTask.id, { status: c.status })}

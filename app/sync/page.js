@@ -37,7 +37,7 @@ export default function SyncListPage() {
           const st = getSyncType(s.type)
           return (
             <Link key={s.id} href={`/sync/${s.id}`}
-              className="block bg-card border border-border rounded-lg p-4 hover:shadow hover:-translate-y-px transition-all">
+              className="block glass rounded-2xl p-4 card-lift">
               <div className="flex items-center gap-3">
                 <span className="text-lg">{st.icon}</span>
                 <div className="flex-1 min-w-0">

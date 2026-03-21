@@ -31,7 +31,7 @@ function Section({ title, number, children }) {
         <span className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">{number}</span>
         {title}
       </h2>
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-sm">
+      <div className="glass rounded-2xl p-5 space-y-4">
         {children}
       </div>
     </section>
@@ -41,7 +41,7 @@ function Section({ title, number, children }) {
 function Field({ label, hint, children }) {
   return (
     <div>
-      <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">{label}</label>
+      <label className="section-label block mb-1">{label}</label>
       {hint && <p className="text-[11px] text-text-tertiary mb-1">{hint}</p>}
       {children}
     </div>
@@ -315,7 +315,7 @@ export default function InterviewFormPage({ params }) {
       )}
 
       {showImport && (
-        <div className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-sm">
+        <div className="glass rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-text">Import Interview</h2>
             <button onClick={() => setShowImport(false)} className="text-text-tertiary text-sm hover:text-text transition">Cancel</button>
@@ -333,7 +333,7 @@ export default function InterviewFormPage({ params }) {
           </div>
 
           {/* Audio/Video upload */}
-          <div className="bg-card-hover border border-border rounded-lg p-4 space-y-2">
+          <div className="glass rounded-2xl p-4 space-y-2">
             <div className="text-xs font-semibold text-text">Upload Recording</div>
             <p className="text-[11px] text-text-tertiary">Upload an audio or video file — AI will transcribe it automatically, then extract interview data.</p>
             <input ref={audioInputRef} type="file" className="hidden"
@@ -451,7 +451,7 @@ export default function InterviewFormPage({ params }) {
         <Section title="Pain Points" number="3">
           {form.pain_points.map((pp, idx) => (
             <div key={idx} className={`border rounded-lg p-4 space-y-3 ${painColors[idx] || painColors[2]}`}>
-              <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Pain Point {idx + 1}</div>
+              <div className="section-label">Pain Point {idx + 1}</div>
               <Field label="Description" hint='Capture verbatim "I wish..." statements'>
                 <textarea value={pp.description} onChange={e => updatePain(idx, 'description', e.target.value)} rows={2} />
               </Field>
@@ -568,7 +568,7 @@ export default function InterviewFormPage({ params }) {
           </div>
         </Section>
 
-        <div className="bg-card border border-border rounded-lg p-5 shadow-sm">
+        <div className="glass rounded-2xl p-5">
           <Field label="Additional Notes">
             <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={3} placeholder="Anything else worth capturing..." />
           </Field>
@@ -581,7 +581,7 @@ export default function InterviewFormPage({ params }) {
               <span className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">📎</span>
               Attachments
             </h2>
-            <div className="bg-card border border-border rounded-lg p-5 shadow-sm space-y-3">
+            <div className="glass rounded-2xl p-5 space-y-3">
               <input ref={attachInputRef} type="file" className="hidden"
                 accept="*/*" onChange={handleFileUpload} />
               <button type="button" onClick={() => attachInputRef.current?.click()} disabled={uploadingFile}

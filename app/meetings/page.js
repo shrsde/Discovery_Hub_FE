@@ -76,7 +76,7 @@ export default function MeetingsPage() {
       </div>
 
       {showNew && (
-        <form onSubmit={handleCreate} className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-sm">
+        <form onSubmit={handleCreate} className="glass rounded-2xl p-5 space-y-4">
           <div className="flex gap-2">
             {['Wes', 'Gibb'].map(a => (
               <button key={a} type="button" onClick={() => setOrganizer(a)}
@@ -102,7 +102,7 @@ export default function MeetingsPage() {
 
       <div className="space-y-3">
         {meetings.map(m => (
-          <div key={m.id} className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+          <div key={m.id} className="glass rounded-2xl overflow-hidden">
             <div className="p-4">
               <div className="flex items-center gap-3">
                 <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${m.organizer === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
@@ -143,8 +143,8 @@ export default function MeetingsPage() {
 
               {/* Parsed summary */}
               {m.parsed_summary && (
-                <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-green-600 mb-1">AI Summary</div>
+                <div className="mt-3 bg-green-50 border border-green-200 rounded-2xl p-3">
+                  <div className="section-label text-green-600 mb-1">AI Summary</div>
                   <p className="text-xs text-text-secondary whitespace-pre-wrap">{m.parsed_summary}</p>
                 </div>
               )}
@@ -152,7 +152,7 @@ export default function MeetingsPage() {
 
             {/* Transcript input */}
             {expandedId === m.id && (
-              <div className="border-t border-border p-4 bg-card-hover space-y-3">
+              <div className="border-t border-white/20 p-4 bg-card-hover space-y-3">
                 <textarea value={transcript} onChange={e => setTranscript(e.target.value)}
                   rows={6} placeholder="Paste the meeting transcript here..." className="resize-none" />
                 <div className="flex items-center gap-2">

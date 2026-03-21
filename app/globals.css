@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Sans:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -37,7 +37,7 @@
 body {
   background: #fafafa;
   color: #0d0e0e;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.01em;
 }
 
 ::-webkit-scrollbar { width: 5px; }
@@ -45,15 +45,16 @@ body {
 ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 9999px; }
 
 input, textarea, select {
-  background: #f2f2f2 !important;
-  border: 1px solid #e8e8e8 !important;
+  background: rgba(255,255,255,0.6) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0,0,0,0.08) !important;
   color: #0d0e0e !important;
-  border-radius: 9999px;
+  border-radius: 12px;
   padding: 10px 16px;
   font-size: 14px;
   width: 100%;
   outline: none;
-  transition: all 0.15s;
+  transition: all 0.2s;
 }
 
 textarea {
@@ -61,8 +62,9 @@ textarea {
 }
 
 input:focus, textarea:focus, select:focus {
-  border-color: #0d0e0e !important;
-  box-shadow: 0 0 0 3px rgba(13, 14, 14, 0.05);
+  border-color: rgba(0,0,0,0.15) !important;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.8) !important;
 }
 
 input::placeholder, textarea::placeholder {
@@ -104,4 +106,98 @@ input[type="range"] {
   padding: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+/* === Liquid Glass Design System === */
+
+/* Glass card base */
+.glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.40);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Gradient accent borders */
+.gradient-blue { border-left: 3px solid #3b82f6; }
+.gradient-green { border-left: 3px solid #22c55e; }
+.gradient-amber { border-left: 3px solid #f59e0b; }
+.gradient-red { border-left: 3px solid #ef4444; }
+.gradient-purple { border-left: 3px solid #8b5cf6; }
+.gradient-peach { border-left: 3px solid #f97316; }
+
+/* Section label (monospace, uppercase, wide tracking) */
+.section-label {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #999;
+}
+
+/* Tag/badge variants */
+.tag {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+.tag-primary { background: rgba(13,14,14,0.06); color: #0d0e0e; }
+.tag-blue { background: rgba(59,130,246,0.08); color: #2563eb; }
+.tag-green { background: rgba(22,163,74,0.08); color: #16a34a; }
+.tag-amber { background: rgba(245,158,11,0.08); color: #d97706; }
+.tag-red { background: rgba(239,68,68,0.08); color: #dc2626; }
+.tag-purple { background: rgba(139,92,246,0.08); color: #7c3aed; }
+
+/* Staggered entrance animation */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: slideUp 0.35s ease-out both;
+}
+
+/* Accent dot separator */
+.dot-sep::before {
+  content: '·';
+  margin: 0 6px;
+  color: rgba(0,0,0,0.2);
+}
+
+/* Nav logo */
+.nav-logo {
+  font-size: 17px;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.04em;
 }

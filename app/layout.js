@@ -50,17 +50,17 @@ function QuickPostModal({ open, onOpenChange, displayName }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-white rounded-xl border border-border shadow-xl w-full max-w-md p-5 space-y-4">
+      <DialogContent className="glass-strong rounded-2xl border-0 shadow-xl w-full max-w-md p-5 space-y-4">
         <DialogHeader>
-          <DialogTitle className="text-sm font-semibold text-text">Quick Post</DialogTitle>
+          <DialogTitle className="text-sm font-semibold text-text tracking-tight">Quick Post</DialogTitle>
         </DialogHeader>
         <form onSubmit={handlePost} className="space-y-3">
           <textarea value={text} onChange={e => setText(e.target.value)}
             rows={4} placeholder="What's on your mind?" autoFocus
-            className="resize-none" />
+            className="resize-none !rounded-xl" />
           <div className="flex justify-end">
             <button type="submit" disabled={posting || !text.trim()}
-              className="px-5 py-2 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40 shadow-sm">
+              className="px-5 py-2 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all duration-200 active:scale-[0.97] disabled:opacity-40 shadow-sm">
               {posting ? 'Posting...' : 'Post'}
             </button>
           </div>
@@ -90,16 +90,16 @@ function QuickMeetingModal({ open, onOpenChange, displayName }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-white rounded-xl border border-border shadow-xl w-full max-w-sm p-5 space-y-4">
+      <DialogContent className="glass-strong rounded-2xl border-0 shadow-xl w-full max-w-sm p-5 space-y-4">
         <DialogHeader>
-          <DialogTitle className="text-sm font-semibold text-text">New Meeting</DialogTitle>
+          <DialogTitle className="text-sm font-semibold text-text tracking-tight">New Meeting</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-3">
           <input value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="Meeting title — e.g. Weekly sync" autoFocus />
-          <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated and the recording bot will join automatically.</p>
+            placeholder="Meeting title" autoFocus />
+          <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Fireflies recording bot joins automatically.</p>
           <button type="submit" disabled={creating || !title.trim()}
-            className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
+            className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all duration-200 active:scale-[0.97] disabled:opacity-40">
             {creating ? 'Creating...' : 'Create Meeting'}
           </button>
         </form>
@@ -132,9 +132,8 @@ function NavShell({ children }) {
 
   useEffect(() => {
     loadNotifications()
-    const interval = setInterval(loadNotifications, 30000) // poll every 30s
+    const interval = setInterval(loadNotifications, 30000)
 
-    // Register push notifications
     if (displayName) {
       import('@/lib/push').then(({ registerPush }) => {
         registerPush(displayName).catch(console.error)
@@ -153,31 +152,28 @@ function NavShell({ children }) {
   const isActive = (href) => href === '/' ? pathname === '/' : pathname.startsWith(href)
   const moreActive = MORE.some(m => isActive(m.href))
 
-  // Don't show nav on login page
   if (pathname === '/login') return <>{children}</>
-
-  // Don't show nav if not logged in
   if (!user) return <>{children}</>
 
   return (
     <>
-      {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-[20px] border-t border-border md:hidden">
+      {/* Mobile bottom nav — glass */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong md:hidden">
         <div className="flex justify-around items-center py-2">
           {MOBILE_NAV.slice(0, 2).map(({ href, label, icon }) => (
             <Link key={href} href={href}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 text-xs transition-colors ${isActive(href) ? 'text-accent font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}>
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 text-xs transition-colors duration-200 ${isActive(href) ? 'text-accent font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}>
               <span className="text-lg">{icon}</span>
               <span>{label}</span>
             </Link>
           ))}
           <Link href="/feed"
-            className="w-10 h-10 bg-accent text-white rounded-full flex items-center justify-center text-xl font-bold shadow-sm -mt-4 active:scale-[0.93] transition-all">
+            className="w-10 h-10 bg-accent text-white rounded-full flex items-center justify-center text-xl font-bold shadow-lg -mt-4 active:scale-[0.93] transition-all duration-200">
             +
           </Link>
           {MOBILE_NAV.slice(2).map(({ href, label, icon }) => (
             <Link key={href} href={href}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 text-xs transition-colors ${isActive(href) ? 'text-accent font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}>
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 text-xs transition-colors duration-200 ${isActive(href) ? 'text-accent font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}>
               <span className="text-lg">{icon}</span>
               <span>{label}</span>
             </Link>
@@ -185,33 +181,32 @@ function NavShell({ children }) {
         </div>
       </nav>
 
-      {/* Desktop top nav */}
-      <nav className="hidden md:block sticky top-0 z-50 bg-[rgba(250,250,250,0.85)] backdrop-blur-[20px] border-b border-border">
-        <div className="w-full px-8 flex items-center h-14">
-          <Link href="/" className="text-xl tracking-tight shrink-0 mr-auto ml-4">
-            <span className="font-black italic text-text">THE HUB</span>
+      {/* Desktop top nav — liquid glass */}
+      <nav className="hidden md:block sticky top-0 z-50 border-b border-[rgba(255,255,255,0.4)] backdrop-blur-2xl bg-[rgba(250,250,250,0.55)] shadow-[0_1px_12px_rgba(0,0,0,0.03),inset_0_1px_0_rgba(255,255,255,0.3)]">
+        <div className="w-full max-w-[1100px] mx-auto px-6 flex items-center h-14">
+          <Link href="/" className="nav-logo shrink-0 mr-auto text-text">
+            THE HUB
           </Link>
           <div className="flex gap-1 items-center">
             {PRIMARY.map(({ href, label }) => (
               <Link key={href} href={href}
-                className={`px-3 py-1.5 rounded-full text-sm transition-all ${isActive(href) ? 'bg-accent text-white font-medium' : 'text-text-secondary hover:bg-accent-bg'}`}>
+                className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium uppercase tracking-nav transition-colors duration-200 ${isActive(href) ? 'bg-accent text-white' : 'text-text-tertiary hover:text-text'}`}>
                 {label}
               </Link>
             ))}
 
-            {/* More dropdown */}
             <DropdownMenu open={showMore} onOpenChange={setShowMore}>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={`group px-3 py-1.5 rounded-full text-sm transition-all ${moreActive ? 'bg-accent text-white font-medium' : 'text-text-secondary hover:bg-accent-bg'}`}>
+                  className={`group px-3 py-1.5 rounded-full text-[11.5px] font-medium uppercase tracking-nav transition-colors duration-200 ${moreActive ? 'bg-accent text-white' : 'text-text-tertiary hover:text-text'}`}>
                   More <span className={`inline-block transition-transform duration-300 ${showMore ? 'rotate-45' : 'group-hover:rotate-90'}`}>+</span>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-white border border-border rounded-lg shadow-lg py-1 w-40">
+              <DropdownMenuContent align="end" className="glass-strong rounded-xl shadow-lg py-1 w-40 border-0">
                 {MORE.map(({ href, label }) => (
                   <DropdownMenuItem key={href} asChild>
                     <Link href={href}
-                      className={`block px-3 py-2 text-sm transition-all ${isActive(href) ? 'bg-accent-bg text-accent font-medium' : 'text-text-secondary hover:bg-card-hover'}`}>
+                      className={`block px-3 py-2 text-sm transition-colors duration-200 ${isActive(href) ? 'text-accent font-medium' : 'text-text-secondary hover:text-text'}`}>
                       {label}
                     </Link>
                   </DropdownMenuItem>
@@ -222,11 +217,11 @@ function NavShell({ children }) {
 
           <div className="w-4" />
 
-          {/* Profile avatar with notification badge */}
+          {/* Profile avatar */}
           <DropdownMenu open={showUser} onOpenChange={setShowUser}>
             <DropdownMenuTrigger asChild>
               <button
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white transition-all hover:ring-2 hover:ring-accent/30 relative ${displayName === 'Wes' ? 'bg-wes' : displayName === 'Gibb' ? 'bg-gibb' : 'bg-accent'}`}>
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white transition-all duration-200 hover:ring-2 hover:ring-accent/20 relative ${displayName === 'Wes' ? 'bg-wes' : displayName === 'Gibb' ? 'bg-gibb' : 'bg-accent'}`}>
                 {displayName?.[0] || '?'}
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
@@ -235,21 +230,20 @@ function NavShell({ children }) {
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white border border-border rounded-lg shadow-lg w-72 overflow-hidden p-0">
-              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <DropdownMenuContent align="end" className="glass-strong rounded-xl shadow-xl w-72 overflow-hidden p-0 border-0">
+              <div className="px-4 py-3 border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold text-text">{displayName}</div>
                   <div className="text-[11px] text-text-tertiary">{user?.email}</div>
                 </div>
                 <button onClick={() => { signOut(); setShowUser(false) }}
-                  className="text-xs px-3 py-1 rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition">
+                  className="text-xs px-3 py-1 rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors duration-200">
                   Sign Out
                 </button>
               </div>
 
-              {/* Notifications */}
               {unreadCount > 0 && (
-                <div className="px-3 py-2 border-b border-border flex items-center justify-between bg-blue-50/50">
+                <div className="px-3 py-2 border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between bg-blue-50/30">
                   <span className="text-xs font-semibold text-text">{unreadCount} new mention{unreadCount > 1 ? 's' : ''}</span>
                   <button onClick={handleMarkAllRead} className="text-[10px] text-accent hover:underline">
                     Mark all read
@@ -263,7 +257,7 @@ function NavShell({ children }) {
                   notifications.slice(0, 10).map(n => (
                     <DropdownMenuItem key={n.id} asChild className="p-0 focus:bg-transparent">
                       <Link href="/feed" onClick={() => setShowUser(false)}
-                        className={`block px-3 py-2.5 border-b border-border-light text-xs hover:bg-card-hover transition ${!n.read ? 'bg-blue-50/30' : ''}`}>
+                        className={`block px-3 py-2.5 border-b border-[rgba(0,0,0,0.04)] text-xs hover:bg-white/40 transition-colors duration-200 ${!n.read ? 'bg-blue-50/20' : ''}`}>
                         <div className="flex items-center gap-2">
                           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${n.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
                             {n.author?.[0]}
@@ -286,7 +280,7 @@ function NavShell({ children }) {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 pb-24 md:pb-8">
+      <main className="max-w-[1100px] mx-auto px-6 py-8 pb-24 md:pb-8">
         {children}
       </main>
 
@@ -295,31 +289,31 @@ function NavShell({ children }) {
         <Popover open={showFab} onOpenChange={setShowFab}>
           <PopoverTrigger asChild>
             <button
-              className={`w-12 h-12 bg-accent text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:shadow-xl transition-all active:scale-[0.93] ${showFab ? 'rotate-45' : ''}`}>
+              className={`w-12 h-12 bg-accent text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:shadow-xl transition-all duration-200 active:scale-[0.93] ${showFab ? 'rotate-45' : ''}`}>
               +
             </button>
           </PopoverTrigger>
           <PopoverContent side="top" align="end" className="w-auto p-0 bg-transparent border-none shadow-none">
             <div className="flex flex-col gap-2 items-end mb-2">
               <button onClick={() => { setShowQuickPost(true); setShowFab(false) }}
-                className="flex items-center gap-2 bg-white border border-border rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl hover:-translate-y-px transition-all text-sm font-medium text-text">
+                className="flex items-center gap-2 glass-strong rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl card-lift text-sm font-medium text-text border-0">
                 New Post
                 <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
+                  ◈
                 </span>
               </button>
               <button onClick={() => { setShowQuickMeeting(true); setShowFab(false) }}
-                className="flex items-center gap-2 bg-white border border-border rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl hover:-translate-y-px transition-all text-sm font-medium text-text">
+                className="flex items-center gap-2 glass-strong rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl card-lift text-sm font-medium text-text border-0">
                 New Meeting
-                <span className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>
+                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs">
+                  ◎
                 </span>
               </button>
               <Link href="/interviews/new" onClick={() => setShowFab(false)}
-                className="flex items-center gap-2 bg-white border border-border rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl hover:-translate-y-px transition-all text-sm font-medium text-text">
+                className="flex items-center gap-2 glass-strong rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl card-lift text-sm font-medium text-text border-0">
                 New Interview
-                <span className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
+                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs">
+                  ◇
                 </span>
               </Link>
             </div>
@@ -327,10 +321,7 @@ function NavShell({ children }) {
         </Popover>
       </div>
 
-      {/* Quick Post Modal */}
       <QuickPostModal open={showQuickPost} onOpenChange={setShowQuickPost} displayName={displayName} />
-
-      {/* Quick Meeting Modal */}
       <QuickMeetingModal open={showQuickMeeting} onOpenChange={setShowQuickMeeting} displayName={displayName} />
     </>
   )
@@ -338,12 +329,12 @@ function NavShell({ children }) {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full antialiased">
       <head>
         <title>THE HUB</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
-      <body className="font-sans antialiased min-h-screen">
+      <body className="font-sans min-h-full flex flex-col">
         <AuthProvider>
           <AuthGate>
             <NavShell>

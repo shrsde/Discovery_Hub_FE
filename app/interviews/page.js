@@ -181,12 +181,12 @@ export default function InterviewsListPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Interviewee Name</label>
+                <label className="section-label block mb-1">Interviewee Name</label>
                 <input value={schedForm.interviewee_name} onChange={e => setSchedForm(f => ({ ...f, interviewee_name: e.target.value }))}
                   placeholder="Sarah Chen" />
               </div>
               <div>
-                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Company</label>
+                <label className="section-label block mb-1">Company</label>
                 <input value={schedForm.company} onChange={e => setSchedForm(f => ({ ...f, company: e.target.value }))}
                   placeholder="Purely Organic" />
               </div>
@@ -194,12 +194,12 @@ export default function InterviewsListPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Role</label>
+                <label className="section-label block mb-1">Role</label>
                 <input value={schedForm.role} onChange={e => setSchedForm(f => ({ ...f, role: e.target.value }))}
                   placeholder="VP Trade Marketing" />
               </div>
               <div>
-                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Department</label>
+                <label className="section-label block mb-1">Department</label>
                 <input value={schedForm.department} onChange={e => setSchedForm(f => ({ ...f, department: e.target.value }))}
                   placeholder="Trade Marketing" />
               </div>
@@ -207,17 +207,17 @@ export default function InterviewsListPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Date</label>
+                <label className="section-label block mb-1">Date</label>
                 <input type="date" value={schedForm.date} onChange={e => setSchedForm(f => ({ ...f, date: e.target.value }))} />
               </div>
               <div>
-                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Time</label>
+                <label className="section-label block mb-1">Time</label>
                 <input type="time" value={schedForm.time} onChange={e => setSchedForm(f => ({ ...f, time: e.target.value }))} />
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Notes</label>
+              <label className="section-label block mb-1">Notes</label>
               <textarea value={schedForm.notes} onChange={e => setSchedForm(f => ({ ...f, notes: e.target.value }))}
                 rows={2} placeholder="Topics to cover, connection source, prep notes..." className="resize-none" />
             </div>
@@ -269,13 +269,13 @@ export default function InterviewsListPage() {
           {/* Scheduled interviews */}
           {scheduled.length > 0 && (
             <section>
-              <h2 className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider mb-3">Upcoming Interviews</h2>
+              <h2 className="section-label text-indigo-600 mb-3">Upcoming Interviews</h2>
               {Object.entries(scheduledByDate).map(([day, items]) => (
                 <div key={day} id={`sched-${day}`} className="mb-4">
-                  <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-2">{day}</div>
+                  <div className="section-label mb-2">{day}</div>
                   <div className="space-y-2">
                     {items.map(i => (
-                      <div key={i.id} className={`bg-card border rounded-lg p-4 hover:shadow hover:-translate-y-px transition-all ${selected.has(i.id) ? 'border-accent ring-2 ring-accent/20' : 'border-indigo-200'}`}>
+                      <div key={i.id} className={`glass rounded-2xl p-4 card-lift ${selected.has(i.id) ? 'border-accent ring-2 ring-accent/20' : 'border-indigo-200'}`}>
                         <div className="flex items-center gap-3">
                           {selectMode && (
                             <button onClick={() => toggleSelect(i.id)}
@@ -340,17 +340,17 @@ export default function InterviewsListPage() {
 
           {/* Completed interviews */}
           <section>
-            <h2 className="text-[11px] font-bold text-text-tertiary uppercase tracking-wider mb-3">
+            <h2 className="section-label mb-3">
               {scheduled.length > 0 ? 'Completed Interviews' : 'Interviews'}
             </h2>
             {Object.entries(completedByDate).map(([day, items]) => (
               <div key={day} id={`comp-${day}`} className="mb-4">
-                <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-2">{day}</div>
+                <div className="section-label mb-2">{day}</div>
                 <div className="space-y-2">
                   {items.map(i => {
                     const painCount = Array.isArray(i.pain_points) ? i.pain_points.length : 0
                     return (
-                      <div key={i.id} className={`bg-card border rounded-lg p-4 hover:shadow hover:-translate-y-px transition-all flex items-center gap-3 ${selected.has(i.id) ? 'border-accent ring-2 ring-accent/20' : 'border-border'}`}>
+                      <div key={i.id} className={`glass rounded-2xl p-4 card-lift flex items-center gap-3 ${selected.has(i.id) ? 'border-accent ring-2 ring-accent/20' : ''}`}>
                         {selectMode && (
                           <button onClick={() => toggleSelect(i.id)}
                             className={`w-5 h-5 rounded border-2 shrink-0 transition-all ${selected.has(i.id) ? 'bg-accent border-accent' : 'border-border hover:border-accent'}`}>

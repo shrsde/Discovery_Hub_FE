@@ -8,16 +8,15 @@ module.exports = {
   ],
   theme: {
     extend: {
-      // Existing custom colors (preserved)
       colors: {
         bg: '#fafafa',
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
-          hover: '#f5f5f5',
+          hover: 'rgba(255,255,255,0.7)',
         },
         border: 'hsl(var(--border))',
-        'border-light': '#f0f0f0',
+        'border-light': 'rgba(255,255,255,0.4)',
         text: '#0d0e0e',
         'text-secondary': '#666666',
         'text-tertiary': '#999999',
@@ -26,20 +25,18 @@ module.exports = {
           light: '#2a2a2a',
           bg: 'rgba(13, 14, 14, 0.05)',
         },
-        // shadcn hover/focus states (light background)
         'sh-accent': {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
         },
-        success: '#1db954',
-        warning: '#d4a026',
-        error: '#e53e3e',
-        'score-green': '#1db954',
-        'score-orange': '#d4a026',
-        'score-red': '#e53e3e',
+        success: '#16a34a',
+        warning: '#d97706',
+        error: '#dc2626',
+        'score-green': '#16a34a',
+        'score-orange': '#d97706',
+        'score-red': '#dc2626',
         'wes': '#1E3A5F',
         'gibb': '#7c3aed',
-        // shadcn CSS variable colors
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         primary: {
@@ -84,6 +81,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Geist Sans', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['Geist Mono', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
         DEFAULT: '12px',
@@ -91,16 +89,25 @@ module.exports = {
         md: 'calc(var(--radius) - 2px)',
         lg: 'var(--radius)',
         xl: '20px',
+        '2xl': '24px',
         full: '9999px',
       },
       boxShadow: {
-        sm: '0 1px 2px rgba(0,0,0,0.04)',
-        DEFAULT: '0 2px 8px rgba(0,0,0,0.06)',
-        lg: '0 8px 24px rgba(0,0,0,0.08)',
-        xl: '0 16px 40px rgba(0,0,0,0.1)',
+        sm: '0 1px 4px rgba(0,0,0,0.03)',
+        DEFAULT: '0 2px 12px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.3)',
+        lg: '0 4px 20px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.3)',
+        xl: '0 8px 32px rgba(0,0,0,0.08)',
+        glass: '0 2px 12px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.3)',
       },
       letterSpacing: {
         tight: '-0.025em',
+        nav: '0.06em',
+        label: '0.12em',
+        wide: '0.05em',
+      },
+      backdropBlur: {
+        xs: '4px',
+        glass: '24px',
       },
     },
   },

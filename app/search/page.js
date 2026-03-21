@@ -74,15 +74,15 @@ export default function SearchPage() {
       {result && (
         <div className="space-y-4">
           {/* Answer */}
-          <div className="bg-card border border-border rounded-lg p-5 shadow-sm">
-            <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-3">Answer</div>
+          <div className="glass rounded-2xl p-5">
+            <div className="section-label mb-3">Answer</div>
             <div className="text-sm text-text leading-relaxed whitespace-pre-wrap">{result.answer}</div>
           </div>
 
           {/* Sources */}
           {result.sources && result.sources.length > 0 && (
             <div>
-              <div className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider mb-2">Sources</div>
+              <div className="section-label mb-2">Sources</div>
               <div className="space-y-2">
                 {result.sources.map((s, i) => {
                   const link = sourceLink(s)
@@ -90,7 +90,7 @@ export default function SearchPage() {
                   const wrapperProps = link ? { href: link } : {}
                   return (
                     <Wrapper key={i} {...wrapperProps}
-                      className={`block bg-card border border-border rounded-lg p-3.5 shadow-sm ${link ? 'hover:shadow hover:-translate-y-px transition-all cursor-pointer' : ''}`}>
+                      className={`block glass rounded-2xl p-3.5 ${link ? 'card-lift cursor-pointer' : ''}`}>
                       <div className="flex items-center gap-2">
                         <span className="text-sm">{sourceIcon(s.type)}</span>
                         <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wider ${sourceBadge(s.type)}`}>
