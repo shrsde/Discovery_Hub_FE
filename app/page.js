@@ -152,14 +152,14 @@ export default function Dashboard() {
       {/* 2. Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Interviews', value: interviews.length, glyph: '◇' },
-          { label: 'Pain Points', value: totalPainPoints, glyph: '◆' },
-          { label: 'Open Tasks', value: openTasks, glyph: '▸' },
-          { label: 'Avg Score', value: `${avgScore}/30`, colorClass: scoreColor(avgScore), glyph: '⬡' },
-        ].map(s => (
-          <div key={s.label} className="glass rounded-2xl p-4 card-lift">
+          { label: 'Interviews', value: interviews.length, glyph: '◇', grad: 'gradient-bg-blue', border: 'gradient-blue' },
+          { label: 'Pain Points', value: totalPainPoints, glyph: '◆', grad: 'gradient-bg-red', border: 'gradient-red' },
+          { label: 'Open Tasks', value: openTasks, glyph: '▸', grad: 'gradient-bg-amber', border: 'gradient-amber' },
+          { label: 'Avg Score', value: `${avgScore}/30`, colorClass: scoreColor(avgScore), glyph: '⬡', grad: 'gradient-bg-green', border: 'gradient-green' },
+        ].map((s, i) => (
+          <div key={s.label} className={`glass rounded-2xl p-4 card-lift ${s.grad} ${s.border} animate-in animate-in-${i + 1}`}>
             <div className="flex items-center gap-1.5">
-              <span className="text-text-tertiary text-xs">{s.glyph}</span>
+              <span className="glyph text-text-tertiary text-sm glyph-float" style={{ animationDelay: `${i * 200}ms` }}>{s.glyph}</span>
               <span className="section-label">{s.label}</span>
             </div>
             <div className={`text-[28px] font-extrabold mt-1 tracking-tight ${s.colorClass || 'text-text'}`}>{s.value}</div>
@@ -330,7 +330,7 @@ export default function Dashboard() {
           {NAV_ITEMS.map(item => {
             const inner = (
               <div className="glass rounded-2xl p-4 text-center card-lift cursor-pointer">
-                <div className="text-xl mb-1.5 text-text-secondary">{item.icon}</div>
+                <div className="glyph glyph-spin-hover text-xl mb-1.5 text-text-secondary">{item.icon}</div>
                 <div className="text-xs font-medium text-text">{item.label}</div>
               </div>
             )

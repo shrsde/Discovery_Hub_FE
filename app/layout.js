@@ -10,6 +10,7 @@ import AuthGate from "@/components/AuthGate"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { CURRENT_VERSION } from "@/lib/versions"
 
 const PRIMARY = [
   { href: '/feed', label: 'Feed' },
@@ -184,8 +185,9 @@ function NavShell({ children }) {
       {/* Desktop top nav — liquid glass */}
       <nav className="hidden md:block sticky top-0 z-50 border-b border-[rgba(255,255,255,0.4)] backdrop-blur-2xl bg-[rgba(250,250,250,0.55)] shadow-[0_1px_12px_rgba(0,0,0,0.03),inset_0_1px_0_rgba(255,255,255,0.3)]">
         <div className="w-full max-w-[1100px] mx-auto px-6 flex items-center h-14">
-          <Link href="/" className="nav-logo shrink-0 mr-auto text-text">
-            THE HUB
+          <Link href="/" className="shrink-0 mr-auto flex items-center gap-2.5">
+            <span className="nav-logo text-text">THE<span className="text-text-tertiary/40 mx-[1px]">·</span>HUB</span>
+            <span className="version-pill text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full">v{CURRENT_VERSION}</span>
           </Link>
           <div className="flex gap-1 items-center">
             {PRIMARY.map(({ href, label }) => (
@@ -298,21 +300,21 @@ function NavShell({ children }) {
               <button onClick={() => { setShowQuickPost(true); setShowFab(false) }}
                 className="flex items-center gap-2 glass-strong rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl card-lift text-sm font-medium text-text border-0">
                 New Post
-                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs">
+                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs glyph">
                   ◈
                 </span>
               </button>
               <button onClick={() => { setShowQuickMeeting(true); setShowFab(false) }}
                 className="flex items-center gap-2 glass-strong rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl card-lift text-sm font-medium text-text border-0">
                 New Meeting
-                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs">
+                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs glyph">
                   ◎
                 </span>
               </button>
               <Link href="/interviews/new" onClick={() => setShowFab(false)}
                 className="flex items-center gap-2 glass-strong rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl card-lift text-sm font-medium text-text border-0">
                 New Interview
-                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs">
+                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs glyph">
                   ◇
                 </span>
               </Link>

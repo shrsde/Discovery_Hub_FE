@@ -1,132 +1,6 @@
 'use client'
 
-const VERSIONS = [
-  {
-    version: '1.8',
-    date: 'March 21, 2026',
-    title: 'Liquid Glass UI + Fireflies Auto-Join + Meeting Transcription Flow',
-    summary: 'Complete design system overhaul to Liquid Glass with frosted glass cards, backdrop blur, geometric glyphs, and refined typography. Fireflies now auto-joins all meetings regardless of creator. Completed meetings auto-post to feed with AI summary.',
-    features: [
-      'Liquid Glass design: frosted glass cards with backdrop-blur and translucent borders across all pages',
-      'Geometric glyphs replace emojis throughout the app',
-      'Refined nav: uppercase tracking, glass blur, monospace section labels',
-      'Staggered entrance animations and card hover lift effects',
-      'Gradient accent borders on cards (blue, green, amber, red, purple)',
-      'Fireflies bot auto-joins all Google Meet calls as calendar attendee',
-      'Meeting transcription auto-posts to feed with AI summary, duration, and tagged attendees',
-      'Interview completion auto-posts to feed with key signals and pain points',
-      'Push notifications for both meeting and interview completions',
-      'Client-side SWR cache for near-instant page transitions',
-    ],
-  },
-  {
-    version: '1.7',
-    date: 'March 21, 2026',
-    title: 'Native Push Notifications + Ingest Webhook',
-    summary: 'Browser push notifications for all new feed posts so you get alerts even when the tab is closed. Plus a generic ingest webhook for posting to the feed from external tools like WhatsApp, Apple Shortcuts, or curl.',
-    features: [
-      'Native push notifications: OS-level alerts for all new feed posts + @mentions',
-      'Service worker: notifications work even when the tab is closed or backgrounded',
-      'Auto push registration on login with browser permission prompt',
-      'Ingest webhook: POST to /api/webhooks/ingest from any external tool (curl, Shortcuts, Zapier)',
-      'Webhook supports auto-classification of post type via Claude',
-      'Webhook creates in-app notifications + push notifications automatically',
-      'Push subscription management: auto-cleanup of expired subscriptions',
-    ],
-  },
-  {
-    version: '1.6',
-    date: 'March 17, 2026',
-    title: 'Interviews Redesign, Delete, Timeline Navigation',
-    summary: 'Interviews page redesigned with timeline sidebar, date grouping, and select-to-delete. Interview scheduler built (staging). Select mode for bulk interview deletion.',
-    features: [
-      'Interviews page: timeline sidebar with date + interviewee navigation',
-      'Interviews grouped by date (upcoming/completed sections)',
-      'Select mode: bulk delete interviews with confirmation',
-      'Interview scheduler with auto Meet link (staging — hidden for debug)',
-      'DELETE endpoint for interviews API',
-    ],
-  },
-  {
-    version: '1.5',
-    date: 'March 17, 2026',
-    title: 'Rich Editor, Mentions, News Room, Automated Meetings',
-    summary: 'Rich text editor with inline @mentions that trigger notifications. News Room with live RSS feeds. Automated meeting recording via Fireflies + Google Calendar. Redesigned nav and feed layout.',
-    features: [
-      'Rich text editor: bold, italic, lists, highlights, code blocks, emoji',
-      'Inline @mentions — type @ to tag Wes or Gibb with styled pill bubbles',
-      'In-app notifications: badge on profile avatar, mention previews',
-      'News Room: live RSS feeds from Food Dive, Grocery Dive, TechCrunch AI, VentureBeat AI + more',
-      'News sorted by date with category filters (Industry, Retail, CPG, AI)',
-      'Today\'s Big News: top 3 featured articles',
-      'Automated meetings: Google Calendar API auto-generates Meet links',
-      'Fireflies.ai bot auto-joins calls, webhook auto-posts transcript + AI summary',
-      'Whisper audio transcription via Groq (upload recordings to auto-transcribe)',
-      'Feed redesign: sticky composer, timeline sidebar, full-width images, search + filters',
-      'Expandable FAB: New Post, New Meeting, New Interview from any page',
-      'Nav redesign: THE HUB logo, simplified primary tabs + More dropdown',
-      'Feed post editing with "last edited" timestamps',
-      'Supabase Auth: password-protected login, user profiles (Wes + Gibb)',
-    ],
-  },
-  {
-    version: '1.3',
-    date: 'March 15, 2026',
-    title: 'Meetings, Tasks, Attachments & More',
-    summary: 'Meeting scheduling with Google Meet links and transcript capture. Trello-style task board. Interview file attachments with AI parsing for search.',
-    features: [
-      'Meeting scheduler with Google Meet link generation',
-      'Post-meeting transcript upload with AI summary',
-      'Trello-style task board with drag-and-drop',
-      'Interview file attachments (PDFs, docs, images, audio, video)',
-      'Attached files parsed by AI and searchable',
-      'Dev changelog',
-    ],
-  },
-  {
-    version: '1.2',
-    date: 'March 14, 2026',
-    title: 'Visual Workflow Flowchart',
-    summary: 'Interactive flowchart visualization for interview workflows using React Flow. AI generates the initial map from interview data.',
-    features: [
-      'AI-generated workflow flowcharts from interview data',
-      '6 color-coded node types: workflow step, pain point, friction, opportunity, handoff, system/tool',
-      'Drag-and-drop editing with auto-save',
-      'Click nodes to see related interview data in detail panel',
-      'Minimap and zoom controls',
-    ],
-  },
-  {
-    version: '1.1',
-    date: 'March 14, 2026',
-    title: 'Feed Enhancements, Search & Import',
-    summary: 'Major feed upgrade with pinning, archiving, media, and tagging. AI-powered search. Transcript import for interviews.',
-    features: [
-      'Feed: pinned posts, archive/delete, media uploads, @Wes/@Gibb tagging',
-      'Feed: video link embeds (YouTube, Vimeo, Loom)',
-      'AI-powered natural language search across full database',
-      'Interview transcript import — paste text, AI fills the form',
-      'MCP server with 11 tools for Claude Desktop integration',
-      'Light theme matching Dropclaw aesthetic',
-    ],
-  },
-  {
-    version: '1.0',
-    date: 'March 13, 2026',
-    title: 'Initial Build',
-    summary: 'Core platform with headless API, Supabase database, and 6-view frontend. Deployed to Vercel.',
-    features: [
-      'Dashboard with stats, opportunity ranking, pain distribution',
-      'Feed — shared research channel with 6 post types',
-      'Project Sync — session handoffs with key takeaways',
-      'Interview capture — 7-section structured form with scoring',
-      'Digest — auto and on-demand AI summaries',
-      'Headless API with Bearer token auth',
-      'Supabase Postgres with 5 tables',
-      'Export for Synthesis button',
-    ],
-  },
-]
+import { VERSIONS } from '@/lib/versions'
 
 export default function ChangelogPage() {
   return (
@@ -135,18 +9,18 @@ export default function ChangelogPage() {
 
       <div className="space-y-6">
         {VERSIONS.map((v, i) => (
-          <div key={v.version} className={`glass rounded-2xl p-5 ${i === 0 ? 'border-blue-200 bg-blue-50/30' : ''}`}>
+          <div key={v.version} className={`glass rounded-2xl p-5 animate-in ${i === 0 ? 'gradient-bg-blue gradient-blue' : ''}`} style={{ animationDelay: `${i * 80}ms` }}>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-white font-semibold">v{v.version}</span>
+              <span className="version-pill text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full">v{v.version}</span>
               <span className="text-xs text-text-tertiary">{v.date}</span>
-              {i === 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-semibold">Latest</span>}
+              {i === 0 && <span className="tag tag-green">Latest</span>}
             </div>
             <h2 className="text-base font-semibold text-text">{v.title}</h2>
             <p className="text-sm text-text-secondary mt-1">{v.summary}</p>
             <ul className="mt-3 space-y-1">
               {v.features.map((f, j) => (
                 <li key={j} className="text-xs text-text-secondary flex items-start gap-2">
-                  <span className="text-text-tertiary mt-0.5">+</span>
+                  <span className="glyph text-text-tertiary mt-0.5">+</span>
                   <span>{f}</span>
                 </li>
               ))}

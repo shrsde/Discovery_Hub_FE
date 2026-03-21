@@ -143,13 +143,21 @@ input[type="range"] {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-/* Gradient accent borders */
+/* Gradient accent borders — left stripe */
 .gradient-blue { border-left: 3px solid #3b82f6; }
 .gradient-green { border-left: 3px solid #22c55e; }
 .gradient-amber { border-left: 3px solid #f59e0b; }
 .gradient-red { border-left: 3px solid #ef4444; }
 .gradient-purple { border-left: 3px solid #8b5cf6; }
 .gradient-peach { border-left: 3px solid #f97316; }
+
+/* Gradient background fills — subtle tinted glass */
+.gradient-bg-blue { background: linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(255,255,255,0.55) 100%); }
+.gradient-bg-green { background: linear-gradient(135deg, rgba(22,163,74,0.06) 0%, rgba(255,255,255,0.55) 100%); }
+.gradient-bg-amber { background: linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(255,255,255,0.55) 100%); }
+.gradient-bg-red { background: linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(255,255,255,0.55) 100%); }
+.gradient-bg-purple { background: linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(255,255,255,0.55) 100%); }
+.gradient-bg-peach { background: linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(255,255,255,0.55) 100%); }
 
 /* Section label (monospace, uppercase, wide tracking) */
 .section-label {
@@ -186,6 +194,55 @@ input[type="range"] {
 .animate-in {
   animation: slideUp 0.35s ease-out both;
 }
+.animate-in-1 { animation-delay: 0ms; }
+.animate-in-2 { animation-delay: 80ms; }
+.animate-in-3 { animation-delay: 160ms; }
+.animate-in-4 { animation-delay: 240ms; }
+.animate-in-5 { animation-delay: 320ms; }
+.animate-in-6 { animation-delay: 400ms; }
+
+/* Glyph icon styles */
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease, color 0.2s ease;
+}
+.glyph:hover {
+  transform: rotate(15deg) scale(1.15);
+}
+
+/* Glyph spin on card hover */
+.card-lift:hover .glyph {
+  transform: rotate(15deg) scale(1.15);
+}
+
+/* Glyph pulse */
+@keyframes glyphPulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+.glyph-pulse {
+  animation: glyphPulse 2s ease-in-out infinite;
+}
+
+/* Glyph float */
+@keyframes glyphFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.glyph-float {
+  animation: glyphFloat 3s ease-in-out infinite;
+}
+
+/* Glyph rotate on hover */
+@keyframes glyphSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.glyph-spin-hover:hover {
+  animation: glyphSpin 0.6s ease-in-out;
+}
 
 /* Accent dot separator */
 .dot-sep::before {
@@ -200,4 +257,16 @@ input[type="range"] {
   font-weight: 800;
   font-style: italic;
   letter-spacing: 0.04em;
+}
+
+/* Version pill */
+.version-pill {
+  background: rgba(13, 14, 14, 0.06);
+  color: #666;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.2s;
+}
+.version-pill:hover {
+  background: rgba(13, 14, 14, 0.1);
+  color: #333;
 }
