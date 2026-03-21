@@ -2,6 +2,21 @@
 
 const VERSIONS = [
   {
+    version: '1.7',
+    date: 'March 21, 2026',
+    title: 'Native Push Notifications + Ingest Webhook',
+    summary: 'Browser push notifications for all new feed posts so you get alerts even when the tab is closed. Plus a generic ingest webhook for posting to the feed from external tools like WhatsApp, Apple Shortcuts, or curl.',
+    features: [
+      'Native push notifications: OS-level alerts for all new feed posts + @mentions',
+      'Service worker: notifications work even when the tab is closed or backgrounded',
+      'Auto push registration on login with browser permission prompt',
+      'Ingest webhook: POST to /api/webhooks/ingest from any external tool (curl, Shortcuts, Zapier)',
+      'Webhook supports auto-classification of post type via Claude',
+      'Webhook creates in-app notifications + push notifications automatically',
+      'Push subscription management: auto-cleanup of expired subscriptions',
+    ],
+  },
+  {
     version: '1.6',
     date: 'March 17, 2026',
     title: 'Interviews Redesign, Delete, Timeline Navigation',
