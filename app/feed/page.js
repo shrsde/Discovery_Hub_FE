@@ -718,11 +718,47 @@ export default function FeedPage() {
           )}
 
           <MediaPreview item={item} />
-          {item.linked_interview_id && (
-            <span className="text-xs text-blue-600 mt-1 inline-block">
-              Linked: {interviews.find(i => i.id === item.linked_interview_id)?.company || 'Interview'}
-            </span>
-          )}
+
+          {/* Interview completion card */}
+          {item.linked_interview_id && (() => {
+            const interview = interviews.find(i => i.id === item.linked_interview_id)
+            return (
+              <div className="mt-3 glass rounded-2xl p-4 gradient-green border-l-[3px] border-l-green-500">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="section-label text-green-700 flex items-center gap-1.5">
+                    <span className="glyph glyph-float">◇</span> Interview
+                  </div>
+                  {interview?.score_total != null && (
+                    <span className={`text-sm font-extrabold ${interview.score_total >= 22 ? 'text-score-green' : interview.score_total >= 18 ? 'text-score-orange' : 'text-score-red'}`}>
+                      {interview.score_total}/30
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm font-semibold text-text">
+                  {interview?.interviewee_name || 'Unknown'} <span className="text-text-secondary font-normal">at</span> {interview?.company || 'Unknown'}
+                </div>
+                {interview?.role && <div className="text-xs text-text-secondary mt-0.5">{interview.role}{interview.department ? ` — ${interview.department}` : ''}</div>}
+                {item.summary && (
+                  <div className="text-xs text-text-secondary mt-2 leading-relaxed whitespace-pre-wrap line-clamp-4">{item.summary}</div>
+                )}
+                {interview?.biggest_signal && !item.summary?.includes(interview.biggest_signal) && (
+                  <div className="mt-2 text-xs text-green-700 bg-green-50/50 rounded-lg px-3 py-2">
+                    <span className="font-semibold">Signal:</span> {interview.biggest_signal}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mt-3">
+                  <a href={`/interviews/${item.linked_interview_id}`}
+                    className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text font-medium hover:bg-white/60 transition-colors duration-200 border border-[rgba(0,0,0,0.08)]">
+                    View Interview
+                  </a>
+                  <a href={`/interviews/${item.linked_interview_id}/flow`}
+                    className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text font-medium hover:bg-white/60 transition-colors duration-200 border border-[rgba(0,0,0,0.08)]">
+                    Generate Workflow
+                  </a>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Thread replies */}
           <ThreadReplies feedId={item.id} displayName={displayName} initialCount={item.reply_count} />
