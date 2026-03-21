@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { getTasks, createTask, updateTask, deleteTask } from '@/lib/api'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const COLUMNS = [
   { status: 'backlog', label: 'Backlog', color: 'border-t-gray-300' },
@@ -171,76 +172,77 @@ export default function TasksPage() {
       </div>
 
       {/* Edit modal */}
-      {editingTask && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setEditingTask(null)}>
-          <div className="bg-white rounded-xl border border-border shadow-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text">Edit Task</h3>
-              <button onClick={() => setEditingTask(null)} className="text-text-tertiary hover:text-text text-lg">&times;</button>
-            </div>
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
+        <DialogContent className="max-w-md p-5 space-y-4">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-text">Edit Task</DialogTitle>
+          </DialogHeader>
 
-            <div>
-              <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Title</label>
-              <input defaultValue={editingTask.title}
-                onBlur={e => handleUpdateTask(editingTask.id, { title: e.target.value })} />
-            </div>
-
-            <div>
-              <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Description</label>
-              <textarea defaultValue={editingTask.description || ''} rows={3}
-                onBlur={e => handleUpdateTask(editingTask.id, { description: e.target.value })} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+          {editingTask && (
+            <>
               <div>
-                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Assignee</label>
+                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Title</label>
+                <input defaultValue={editingTask.title}
+                  onBlur={e => handleUpdateTask(editingTask.id, { title: e.target.value })} />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Description</label>
+                <textarea defaultValue={editingTask.description || ''} rows={3}
+                  onBlur={e => handleUpdateTask(editingTask.id, { description: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Assignee</label>
+                  <div className="flex gap-1">
+                    {['Wes', 'Gibb'].map(a => (
+                      <button key={a} onClick={() => handleUpdateTask(editingTask.id, { assignee: a })}
+                        className={`flex-1 py-2 rounded-full text-xs font-semibold transition-all ${
+                          editingTask.assignee === a
+                            ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
+                            : 'bg-card-hover border border-border text-text-secondary'
+                        }`}>{a}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Due Date</label>
+                  <input type="date" defaultValue={editingTask.due_date || ''}
+                    onChange={e => handleUpdateTask(editingTask.id, { due_date: e.target.value })} />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Priority</label>
                 <div className="flex gap-1">
-                  {['Wes', 'Gibb'].map(a => (
-                    <button key={a} onClick={() => handleUpdateTask(editingTask.id, { assignee: a })}
-                      className={`flex-1 py-2 rounded-full text-xs font-semibold transition-all ${
-                        editingTask.assignee === a
-                          ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
-                          : 'bg-card-hover border border-border text-text-secondary'
-                      }`}>{a}</button>
+                  {PRIORITIES.map(p => (
+                    <button key={p.value} onClick={() => handleUpdateTask(editingTask.id, { priority: p.value })}
+                      className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                        editingTask.priority === p.value ? p.color + ' border-current' : 'bg-white border-border text-text-tertiary'
+                      }`}>{p.label}</button>
                   ))}
                 </div>
               </div>
+
               <div>
-                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Due Date</label>
-                <input type="date" defaultValue={editingTask.due_date || ''}
-                  onChange={e => handleUpdateTask(editingTask.id, { due_date: e.target.value })} />
+                <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Status</label>
+                <div className="flex gap-1">
+                  {COLUMNS.map(c => (
+                    <button key={c.status} onClick={() => handleUpdateTask(editingTask.id, { status: c.status })}
+                      className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                        editingTask.status === c.status ? 'bg-accent text-white border-accent' : 'bg-white border-border text-text-tertiary'
+                      }`}>{c.label}</button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Priority</label>
-              <div className="flex gap-1">
-                {PRIORITIES.map(p => (
-                  <button key={p.value} onClick={() => handleUpdateTask(editingTask.id, { priority: p.value })}
-                    className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                      editingTask.priority === p.value ? p.color + ' border-current' : 'bg-white border-border text-text-tertiary'
-                    }`}>{p.label}</button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Status</label>
-              <div className="flex gap-1">
-                {COLUMNS.map(c => (
-                  <button key={c.status} onClick={() => handleUpdateTask(editingTask.id, { status: c.status })}
-                    className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                      editingTask.status === c.status ? 'bg-accent text-white border-accent' : 'bg-white border-border text-text-tertiary'
-                    }`}>{c.label}</button>
-                ))}
-              </div>
-            </div>
-
-            <button onClick={() => handleDeleteTask(editingTask.id)}
-              className="text-xs text-red-500 hover:text-red-700 transition">Delete task</button>
-          </div>
-        </div>
-      )}
+              <button onClick={() => handleDeleteTask(editingTask.id)}
+                className="text-xs text-red-500 hover:text-red-700 transition">Delete task</button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

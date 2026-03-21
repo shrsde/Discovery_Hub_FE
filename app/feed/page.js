@@ -5,6 +5,7 @@ import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getIntervie
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
 import RichEditor, { RichContent } from '@/components/RichEditor'
 import { useAuth } from '@/lib/auth-context'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 function VideoEmbed({ url }) {
   let embedUrl = null
@@ -725,35 +726,32 @@ export default function FeedPage() {
       </div>
 
       {/* Meeting creation modal */}
-      {showMeetingModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowMeetingModal(false)}>
-          <div className="bg-white rounded-xl border border-border shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text">Create Meeting</h3>
-              <button onClick={() => setShowMeetingModal(false)} className="text-text-tertiary hover:text-text text-lg">&times;</button>
+      <Dialog open={showMeetingModal} onOpenChange={setShowMeetingModal}>
+        <DialogContent className="bg-white rounded-xl border border-border shadow-xl w-full max-w-sm p-5 space-y-4">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-text">Create Meeting</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateMeeting} className="space-y-3">
+            <div className="flex gap-2">
+              {['Wes', 'Gibb'].map(a => (
+                <button key={a} type="button" onClick={() => setMeetingOrganizer(a)}
+                  className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
+                    meetingOrganizer === a
+                      ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
+                      : 'bg-card-hover border border-border text-text-secondary'
+                  }`}>{a}</button>
+              ))}
             </div>
-            <form onSubmit={handleCreateMeeting} className="space-y-3">
-              <div className="flex gap-2">
-                {['Wes', 'Gibb'].map(a => (
-                  <button key={a} type="button" onClick={() => setMeetingOrganizer(a)}
-                    className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
-                      meetingOrganizer === a
-                        ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
-                        : 'bg-card-hover border border-border text-text-secondary'
-                    }`}>{a}</button>
-                ))}
-              </div>
-              <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
-                placeholder="Meeting title — e.g. Weekly sync" />
-              <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated and the recording bot will join automatically.</p>
-              <button type="submit" disabled={creatingMeeting || !meetingTitle.trim()}
-                className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
-                {creatingMeeting ? 'Creating meeting...' : 'Create Meeting'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+            <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
+              placeholder="Meeting title — e.g. Weekly sync" />
+            <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated and the recording bot will join automatically.</p>
+            <button type="submit" disabled={creatingMeeting || !meetingTitle.trim()}
+              className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
+              {creatingMeeting ? 'Creating meeting...' : 'Create Meeting'}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

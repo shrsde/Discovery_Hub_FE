@@ -4,6 +4,36 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 150 7% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 150 7% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 7% 5%;
+    --primary: 150 7% 5%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 150 7% 5%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 150 7% 5%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 91%;
+    --input: 0 0% 91%;
+    --ring: 150 7% 5%;
+    --radius: 12px;
+    --chart-1: 142 71% 45%;
+    --chart-2: 43 74% 49%;
+    --chart-3: 0 72% 51%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 210 56% 24%;
+  }
+}
+
 body {
   background: #fafafa;
   color: #0d0e0e;

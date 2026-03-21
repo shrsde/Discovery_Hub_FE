@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getInterview, saveInterview, importTranscript, getAttachments, uploadAttachment, deleteAttachment, transcribeAudio } from '@/lib/api'
@@ -63,6 +63,9 @@ export default function InterviewFormPage({ params }) {
   const [attachments, setAttachments] = useState([])
   const [uploadingFile, setUploadingFile] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
+  const [interviewStatus, setInterviewStatus] = useState(null)
+  const [meetLink, setMeetLink] = useState('')
+  const [pollingNotice, setPollingNotice] = useState('')
   const attachInputRef = useRef(null)
   const audioInputRef = useRef(null)
 
@@ -91,12 +94,59 @@ export default function InterviewFormPage({ params }) {
           const pp = Array.isArray(data.pain_points) ? data.pain_points : []
           while (pp.length < 3) pp.push({ ...EMPTY_PAIN })
           setForm(f => ({ ...f, ...data, pain_points: pp }))
+          if (data.status) setInterviewStatus(data.status)
+          if (data.meet_link) setMeetLink(data.meet_link)
         }
         setLoading(false)
       })
       getAttachments(id).then(r => setAttachments(r.data || [])).catch(() => {})
     }
   }, [id, isNew])
+
+  // Polling when interview is in_progress
+  useEffect(() => {
+    if (interviewStatus !== 'in_progress') return
+    const interval = setInterval(async () => {
+      try {
+        const data = await getInterview(id)
+        if (!data) return
+        if (data.status === 'completed') {
+          setInterviewStatus('completed')
+          clearInterval(interval)
+        }
+        // Check if new extracted data arrived
+        const hasNewQuotes = data.verbatim_quotes && !form.verbatim_quotes
+        const hasNewPains = Array.isArray(data.pain_points) && data.pain_points.some(p => p.description) &&
+          !form.pain_points.some(p => p.description)
+        if (hasNewQuotes || hasNewPains) {
+          const pp = Array.isArray(data.pain_points) ? data.pain_points : []
+          while (pp.length < 3) pp.push({ ...EMPTY_PAIN })
+          setForm(f => ({
+            ...f,
+            ...Object.fromEntries(
+              Object.entries(data).filter(([k, v]) => v !== null && v !== undefined && k !== 'id' && k !== 'status')
+            ),
+            pain_points: pp,
+          }))
+          setPollingNotice('Transcript processed — form updated with extracted data')
+          setTimeout(() => setPollingNotice(''), 5000)
+        }
+      } catch (err) {
+        // silently ignore polling errors
+      }
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [interviewStatus, id])
+
+  const handleMarkComplete = useCallback(async () => {
+    setSaving(true)
+    try {
+      const payload = { ...form, status: 'completed', pain_points: form.pain_points.filter(p => p.description.trim()) }
+      if (!isNew) payload.id = id
+      await saveInterview(payload)
+      setInterviewStatus('completed')
+    } finally { setSaving(false) }
+  }, [form, id, isNew])
 
   async function handleFileUpload(e) {
     const file = e.target.files?.[0]
@@ -181,6 +231,7 @@ export default function InterviewFormPage({ params }) {
     setSaving(true)
     try {
       const payload = { ...form, pain_points: form.pain_points.filter(p => p.description.trim()) }
+      if (interviewStatus) payload.status = interviewStatus
       if (!isNew) payload.id = id
       await saveInterview(payload)
       router.push('/interviews')
@@ -209,6 +260,51 @@ export default function InterviewFormPage({ params }) {
           <h1 className="text-xl font-semibold text-text">{isNew ? 'New Interview' : 'Edit Interview'}</h1>
         </div>
       </div>
+
+      {/* Live Interview Header */}
+      {(interviewStatus === 'scheduled' || interviewStatus === 'in_progress') && (
+        <div className={`sticky top-0 z-10 rounded-lg p-4 flex items-center justify-between gap-3 ${
+          interviewStatus === 'in_progress'
+            ? 'bg-green-50 border border-green-200'
+            : 'bg-indigo-50 border border-indigo-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            {interviewStatus === 'scheduled' && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-300">
+                Scheduled
+              </span>
+            )}
+            {interviewStatus === 'in_progress' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Live Interview
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {meetLink && (
+              <a href={meetLink} target="_blank" rel="noopener noreferrer"
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-full hover:bg-blue-700 transition-all active:scale-[0.97] shadow-sm">
+                Join Google Meet
+              </a>
+            )}
+            <button type="button" onClick={handleMarkComplete} disabled={saving}
+              className="px-4 py-2 bg-white text-sm font-semibold rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all active:scale-[0.97] disabled:opacity-40">
+              {saving ? 'Saving...' : 'Mark Complete'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Polling Notice */}
+      {pollingNotice && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-700 font-medium animate-pulse">
+          {pollingNotice}
+        </div>
+      )}
 
       {/* Import Transcript */}
       {isNew && !showImport && (

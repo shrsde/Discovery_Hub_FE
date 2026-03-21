@@ -7,6 +7,9 @@ import { useState, useEffect, useCallback } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { getNotifications, markNotificationsRead } from "@/lib/api"
 import AuthGate from "@/components/AuthGate"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 const PRIMARY = [
   { href: '/feed', label: 'Feed' },
@@ -27,7 +30,7 @@ const MOBILE_NAV = [
   { href: '/interviews', label: 'Interviews', icon: '◇' },
 ]
 
-function QuickPostModal({ onClose, displayName }) {
+function QuickPostModal({ open, onOpenChange, displayName }) {
   const [text, setText] = useState('')
   const [posting, setPosting] = useState(false)
 
@@ -41,17 +44,16 @@ function QuickPostModal({ onClose, displayName }) {
       if (text.includes('@Wes')) tags.push('Wes')
       if (text.includes('@Gibb')) tags.push('Gibb')
       await postFeed({ author: displayName || 'Wes', type: 'insight', text, tags })
-      onClose()
+      onOpenChange(false)
     } finally { setPosting(false) }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl border border-border shadow-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text">Quick Post</h3>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text text-lg">&times;</button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-white rounded-xl border border-border shadow-xl w-full max-w-md p-5 space-y-4">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-text">Quick Post</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handlePost} className="space-y-3">
           <textarea value={text} onChange={e => setText(e.target.value)}
             rows={4} placeholder="What's on your mind?" autoFocus
@@ -63,12 +65,12 @@ function QuickPostModal({ onClose, displayName }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
-function QuickMeetingModal({ onClose, displayName }) {
+function QuickMeetingModal({ open, onOpenChange, displayName }) {
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
 
@@ -82,17 +84,16 @@ function QuickMeetingModal({ onClose, displayName }) {
       if (res.data?.meet_link && res.data.meet_link !== 'https://meet.google.com/new') {
         window.open(res.data.meet_link, '_blank')
       }
-      onClose()
+      onOpenChange(false)
     } finally { setCreating(false) }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl border border-border shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text">New Meeting</h3>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text text-lg">&times;</button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-white rounded-xl border border-border shadow-xl w-full max-w-sm p-5 space-y-4">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-text">New Meeting</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-3">
           <input value={title} onChange={e => setTitle(e.target.value)}
             placeholder="Meeting title — e.g. Weekly sync" autoFocus />
@@ -102,8 +103,8 @@ function QuickMeetingModal({ onClose, displayName }) {
             {creating ? 'Creating...' : 'Create Meeting'}
           </button>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -116,7 +117,6 @@ function NavShell({ children }) {
   const [showQuickPost, setShowQuickPost] = useState(false)
   const [showQuickMeeting, setShowQuickMeeting] = useState(false)
   const [notifications, setNotifications] = useState([])
-  const [showNotifications, setShowNotifications] = useState(false)
 
   const unreadCount = notifications.filter(n => !n.read).length
 
@@ -133,8 +133,16 @@ function NavShell({ children }) {
   useEffect(() => {
     loadNotifications()
     const interval = setInterval(loadNotifications, 30000) // poll every 30s
+
+    // Register push notifications
+    if (displayName) {
+      import('@/lib/push').then(({ registerPush }) => {
+        registerPush(displayName).catch(console.error)
+      })
+    }
+
     return () => clearInterval(interval)
-  }, [loadNotifications])
+  }, [loadNotifications, displayName])
 
   async function handleMarkAllRead() {
     if (!displayName) return
@@ -192,91 +200,89 @@ function NavShell({ children }) {
             ))}
 
             {/* More dropdown */}
-            <div className="relative">
-              <button onClick={() => setShowMore(!showMore)}
-                className={`group px-3 py-1.5 rounded-full text-sm transition-all ${moreActive ? 'bg-accent text-white font-medium' : 'text-text-secondary hover:bg-accent-bg'}`}>
-                More <span className={`inline-block transition-transform duration-300 ${showMore ? 'rotate-45' : 'group-hover:rotate-90'}`}>+</span>
-              </button>
-              {showMore && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowMore(false)} />
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg py-1 w-40 z-50">
-                    {MORE.map(({ href, label }) => (
-                      <Link key={href} href={href} onClick={() => setShowMore(false)}
-                        className={`block px-3 py-2 text-sm transition-all ${isActive(href) ? 'bg-accent-bg text-accent font-medium' : 'text-text-secondary hover:bg-card-hover'}`}>
-                        {label}
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            <DropdownMenu open={showMore} onOpenChange={setShowMore}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`group px-3 py-1.5 rounded-full text-sm transition-all ${moreActive ? 'bg-accent text-white font-medium' : 'text-text-secondary hover:bg-accent-bg'}`}>
+                  More <span className={`inline-block transition-transform duration-300 ${showMore ? 'rotate-45' : 'group-hover:rotate-90'}`}>+</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-white border border-border rounded-lg shadow-lg py-1 w-40">
+                {MORE.map(({ href, label }) => (
+                  <DropdownMenuItem key={href} asChild>
+                    <Link href={href}
+                      className={`block px-3 py-2 text-sm transition-all ${isActive(href) ? 'bg-accent-bg text-accent font-medium' : 'text-text-secondary hover:bg-card-hover'}`}>
+                      {label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="w-4" />
 
           {/* Profile avatar with notification badge */}
-          <div className="relative">
-            <button onClick={() => { setShowUser(!showUser); setShowNotifications(false) }}
-              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white transition-all hover:ring-2 hover:ring-accent/30 relative ${displayName === 'Wes' ? 'bg-wes' : displayName === 'Gibb' ? 'bg-gibb' : 'bg-accent'}`}>
-              {displayName?.[0] || '?'}
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-            {showUser && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowUser(false)} />
-                <div className="absolute right-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg w-72 z-50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-text">{displayName}</div>
-                      <div className="text-[11px] text-text-tertiary">{user?.email}</div>
-                    </div>
-                    <button onClick={() => { signOut(); setShowUser(false) }}
-                      className="text-xs px-3 py-1 rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition">
-                      Sign Out
-                    </button>
-                  </div>
-
-                  {/* Notifications */}
-                  {unreadCount > 0 && (
-                    <div className="px-3 py-2 border-b border-border flex items-center justify-between bg-blue-50/50">
-                      <span className="text-xs font-semibold text-text">{unreadCount} new mention{unreadCount > 1 ? 's' : ''}</span>
-                      <button onClick={handleMarkAllRead} className="text-[10px] text-accent hover:underline">
-                        Mark all read
-                      </button>
-                    </div>
-                  )}
-                  <div className="max-h-60 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <div className="px-3 py-4 text-xs text-text-tertiary text-center">No mentions yet</div>
-                    ) : (
-                      notifications.slice(0, 10).map(n => (
-                        <Link key={n.id} href="/feed" onClick={() => setShowUser(false)}
-                          className={`block px-3 py-2.5 border-b border-border-light text-xs hover:bg-card-hover transition ${!n.read ? 'bg-blue-50/30' : ''}`}>
-                          <div className="flex items-center gap-2">
-                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${n.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
-                              {n.author?.[0]}
-                            </span>
-                            <span className="text-text-secondary">
-                              <span className="font-semibold text-text">{n.author}</span> mentioned you
-                            </span>
-                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-auto shrink-0" />}
-                          </div>
-                          {n.preview && (
-                            <p className="text-text-tertiary mt-1 line-clamp-2 pl-7">{n.preview}</p>
-                          )}
-                        </Link>
-                      ))
-                    )}
-                  </div>
+          <DropdownMenu open={showUser} onOpenChange={setShowUser}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white transition-all hover:ring-2 hover:ring-accent/30 relative ${displayName === 'Wes' ? 'bg-wes' : displayName === 'Gibb' ? 'bg-gibb' : 'bg-accent'}`}>
+                {displayName?.[0] || '?'}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white border border-border rounded-lg shadow-lg w-72 overflow-hidden p-0">
+              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-text">{displayName}</div>
+                  <div className="text-[11px] text-text-tertiary">{user?.email}</div>
                 </div>
-              </>
-            )}
-            </div>
+                <button onClick={() => { signOut(); setShowUser(false) }}
+                  className="text-xs px-3 py-1 rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition">
+                  Sign Out
+                </button>
+              </div>
+
+              {/* Notifications */}
+              {unreadCount > 0 && (
+                <div className="px-3 py-2 border-b border-border flex items-center justify-between bg-blue-50/50">
+                  <span className="text-xs font-semibold text-text">{unreadCount} new mention{unreadCount > 1 ? 's' : ''}</span>
+                  <button onClick={handleMarkAllRead} className="text-[10px] text-accent hover:underline">
+                    Mark all read
+                  </button>
+                </div>
+              )}
+              <div className="max-h-60 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-3 py-4 text-xs text-text-tertiary text-center">No mentions yet</div>
+                ) : (
+                  notifications.slice(0, 10).map(n => (
+                    <DropdownMenuItem key={n.id} asChild className="p-0 focus:bg-transparent">
+                      <Link href="/feed" onClick={() => setShowUser(false)}
+                        className={`block px-3 py-2.5 border-b border-border-light text-xs hover:bg-card-hover transition ${!n.read ? 'bg-blue-50/30' : ''}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${n.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
+                            {n.author?.[0]}
+                          </span>
+                          <span className="text-text-secondary">
+                            <span className="font-semibold text-text">{n.author}</span> mentioned you
+                          </span>
+                          {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-auto shrink-0" />}
+                        </div>
+                        {n.preview && (
+                          <p className="text-text-tertiary mt-1 line-clamp-2 pl-7">{n.preview}</p>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </nav>
 
@@ -286,11 +292,15 @@ function NavShell({ children }) {
 
       {/* FAB — Desktop only */}
       <div className="hidden md:block fixed bottom-6 right-6 z-40">
-        {/* Expanded options */}
-        {showFab && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setShowFab(false)} />
-            <div className="absolute bottom-14 right-0 z-40 flex flex-col gap-2 items-end">
+        <Popover open={showFab} onOpenChange={setShowFab}>
+          <PopoverTrigger asChild>
+            <button
+              className={`w-12 h-12 bg-accent text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:shadow-xl transition-all active:scale-[0.93] ${showFab ? 'rotate-45' : ''}`}>
+              +
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side="top" align="end" className="w-auto p-0 bg-transparent border-none shadow-none">
+            <div className="flex flex-col gap-2 items-end mb-2">
               <button onClick={() => { setShowQuickPost(true); setShowFab(false) }}
                 className="flex items-center gap-2 bg-white border border-border rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl hover:-translate-y-px transition-all text-sm font-medium text-text">
                 New Post
@@ -313,25 +323,15 @@ function NavShell({ children }) {
                 </span>
               </Link>
             </div>
-          </>
-        )}
-
-        {/* FAB button */}
-        <button onClick={() => setShowFab(!showFab)}
-          className={`w-12 h-12 bg-accent text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:shadow-xl transition-all active:scale-[0.93] ${showFab ? 'rotate-45' : ''}`}>
-          +
-        </button>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Quick Post Modal */}
-      {showQuickPost && (
-        <QuickPostModal onClose={() => setShowQuickPost(false)} displayName={displayName} />
-      )}
+      <QuickPostModal open={showQuickPost} onOpenChange={setShowQuickPost} displayName={displayName} />
 
       {/* Quick Meeting Modal */}
-      {showQuickMeeting && (
-        <QuickMeetingModal onClose={() => setShowQuickMeeting(false)} displayName={displayName} />
-      )}
+      <QuickMeetingModal open={showQuickMeeting} onOpenChange={setShowQuickMeeting} displayName={displayName} />
     </>
   )
 }

@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { getInterviews, saveInterview, createMeeting, deleteInterviews } from '@/lib/api'
 import { scoreColor, timeAgo } from '@/lib/constants'
 import { useAuth } from '@/lib/auth-context'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+import Countdown from '@/components/Countdown'
 
 export default function InterviewsListPage() {
   const { displayName } = useAuth()
+  const router = useRouter()
   const [interviews, setInterviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [showSchedule, setShowSchedule] = useState(false)
@@ -45,14 +50,20 @@ export default function InterviewsListPage() {
     setInterviews(r.data || [])
   }
 
+  async function handleStartInterview(id) {
+    await saveInterview({ id, status: 'in_progress' })
+    router.push(`/interviews/${id}`)
+    await load()
+  }
+
   useEffect(() => { load().finally(() => setLoading(false)) }, [])
 
   const scheduled = interviews
-    .filter(i => i.status === 'scheduled')
+    .filter(i => i.status === 'scheduled' || i.status === 'in_progress')
     .sort((a, b) => new Date(a.scheduled_at || a.date) - new Date(b.scheduled_at || b.date))
 
   const completed = interviews
-    .filter(i => i.status !== 'scheduled')
+    .filter(i => i.status !== 'scheduled' && i.status !== 'in_progress')
     .sort((a, b) => new Date(b.date) - new Date(a.date))
 
   // Group scheduled by date for timeline
@@ -137,7 +148,10 @@ export default function InterviewsListPage() {
                 className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
                 Select
               </button>
-              {/* Schedule button hidden until debugged */}
+              <button onClick={() => setShowSchedule(true)}
+                className="text-sm px-4 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] font-semibold shadow-sm">
+                Schedule
+              </button>
               <Link href="/interviews/new"
                 className="text-sm px-4 py-2 bg-accent text-white rounded-full hover:bg-accent-light transition-all active:scale-[0.97] font-semibold shadow-sm">
                 + New
@@ -147,76 +161,76 @@ export default function InterviewsListPage() {
         </div>
       </div>
 
-      {/* Schedule form */}
-      {showSchedule && (
-        <form onSubmit={handleSchedule} className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-sm mb-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-text">Schedule Interview</h2>
-            <button type="button" onClick={() => setShowSchedule(false)} className="text-text-tertiary hover:text-text text-lg">&times;</button>
-          </div>
-
-          <div className="flex gap-2">
-            {['Wes', 'Gibb'].map(a => (
-              <button key={a} type="button" onClick={() => setSchedForm(f => ({ ...f, interviewer: a }))}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
-                  schedForm.interviewer === a
-                    ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
-                    : 'bg-card-hover border border-border text-text-secondary'
-                }`}>{a}</button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Interviewee Name</label>
-              <input value={schedForm.interviewee_name} onChange={e => setSchedForm(f => ({ ...f, interviewee_name: e.target.value }))}
-                placeholder="Sarah Chen" />
+      {/* Schedule Dialog */}
+      <Dialog open={showSchedule} onOpenChange={setShowSchedule}>
+        <DialogContent className="max-w-md p-5 space-y-4">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-text">Schedule Interview</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSchedule} className="space-y-4">
+            <div className="flex gap-2">
+              {['Wes', 'Gibb'].map(a => (
+                <button key={a} type="button" onClick={() => setSchedForm(f => ({ ...f, interviewer: a }))}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
+                    schedForm.interviewer === a
+                      ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
+                      : 'bg-card-hover border border-border text-text-secondary'
+                  }`}>{a}</button>
+              ))}
             </div>
-            <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Company</label>
-              <input value={schedForm.company} onChange={e => setSchedForm(f => ({ ...f, company: e.target.value }))}
-                placeholder="Purely Organic" />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Role</label>
-              <input value={schedForm.role} onChange={e => setSchedForm(f => ({ ...f, role: e.target.value }))}
-                placeholder="VP Trade Marketing" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Interviewee Name</label>
+                <input value={schedForm.interviewee_name} onChange={e => setSchedForm(f => ({ ...f, interviewee_name: e.target.value }))}
+                  placeholder="Sarah Chen" />
+              </div>
+              <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Company</label>
+                <input value={schedForm.company} onChange={e => setSchedForm(f => ({ ...f, company: e.target.value }))}
+                  placeholder="Purely Organic" />
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Department</label>
-              <input value={schedForm.department} onChange={e => setSchedForm(f => ({ ...f, department: e.target.value }))}
-                placeholder="Trade Marketing" />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Role</label>
+                <input value={schedForm.role} onChange={e => setSchedForm(f => ({ ...f, role: e.target.value }))}
+                  placeholder="VP Trade Marketing" />
+              </div>
+              <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Department</label>
+                <input value={schedForm.department} onChange={e => setSchedForm(f => ({ ...f, department: e.target.value }))}
+                  placeholder="Trade Marketing" />
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Date</label>
-              <input type="date" value={schedForm.date} onChange={e => setSchedForm(f => ({ ...f, date: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Date</label>
+                <input type="date" value={schedForm.date} onChange={e => setSchedForm(f => ({ ...f, date: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Time</label>
+                <input type="time" value={schedForm.time} onChange={e => setSchedForm(f => ({ ...f, time: e.target.value }))} />
+              </div>
             </div>
+
             <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Time</label>
-              <input type="time" value={schedForm.time} onChange={e => setSchedForm(f => ({ ...f, time: e.target.value }))} />
+              <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Notes</label>
+              <textarea value={schedForm.notes} onChange={e => setSchedForm(f => ({ ...f, notes: e.target.value }))}
+                rows={2} placeholder="Topics to cover, connection source, prep notes..." className="resize-none" />
             </div>
-          </div>
 
-          <div>
-            <label className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">Notes</label>
-            <textarea value={schedForm.notes} onChange={e => setSchedForm(f => ({ ...f, notes: e.target.value }))}
-              rows={2} placeholder="Topics to cover, connection source, prep notes..." className="resize-none" />
-          </div>
+            <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated and the recording bot will join automatically.</p>
 
-          <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated for the interview.</p>
-
-          <button type="submit" disabled={scheduling || !schedForm.interviewee_name.trim()}
-            className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
-            {scheduling ? 'Scheduling...' : 'Schedule Interview'}
-          </button>
-        </form>
-      )}
+            <button type="submit" disabled={scheduling || !schedForm.interviewee_name.trim()}
+              className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
+              {scheduling ? 'Scheduling...' : 'Schedule Interview'}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Main layout with timeline sidebar */}
       <div className="flex gap-6">
@@ -276,22 +290,39 @@ export default function InterviewsListPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-text">{i.interviewee_name || 'TBD'}</span>
                               {i.company && <span className="text-text-secondary text-sm">{i.company}</span>}
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium">Scheduled</span>
+                              {i.status === 'in_progress' ? (
+                                <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full animate-pulse">In Progress</span>
+                              ) : (
+                                i.scheduled_at && <Countdown scheduledAt={i.scheduled_at} />
+                              )}
                             </div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-text-tertiary">
                               {i.role && <span>{i.role}</span>}
+                              {i.department && <span>{i.department}</span>}
                               {i.scheduled_at && (
-                                <span>{new Date(i.scheduled_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                                <span>{new Date(i.scheduled_at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {i.meet_link && (
                               <a href={i.meet_link} target="_blank" rel="noopener"
-                                className="text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
-                                Join
+                                className="text-xs px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition font-semibold shadow-sm">
+                                Join Meet
                               </a>
                             )}
+                            {(() => {
+                              const scheduledTime = new Date(i.scheduled_at || i.date).getTime()
+                              const now = Date.now()
+                              const fifteenMin = 15 * 60 * 1000
+                              const canStart = now >= scheduledTime - fifteenMin
+                              return canStart ? (
+                                <button onClick={() => handleStartInterview(i.id)}
+                                  className="text-xs px-3 py-1.5 rounded-full bg-green-600 text-white hover:bg-green-700 transition font-semibold shadow-sm">
+                                  Start Interview
+                                </button>
+                              ) : null
+                            })()}
                             <Link href={`/interviews/${i.id}`}
                               className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
                               Edit

@@ -7,6 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Mention from '@tiptap/extension-mention'
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react'
 import tippy from 'tippy.js'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
 const EMOJIS = ['👍', '🎯', '💡', '⚡', '🔥', '✅', '❌', '⚠️', '📌', '📞', '🔍', '💰', '📊', '🚀', '🤔', '👀']
 const USERS = [
@@ -35,16 +36,16 @@ const icons = {
   at: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94" /></svg>,
 }
 
-function ToolbarButton({ onClick, active, children, title }) {
+const ToolbarButton = forwardRef(function ToolbarButton({ onClick, active, children, title, ...props }, ref) {
   return (
-    <button type="button" onClick={onClick} title={title}
+    <button type="button" ref={ref} onClick={onClick} title={title} {...props}
       className={`w-7 h-7 flex items-center justify-center rounded transition-all ${
         active ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
       }`}>
       {children}
     </button>
   )
-}
+})
 
 // Mention suggestion dropdown
 const MentionList = forwardRef(function MentionList({ items, command }, ref) {
@@ -179,23 +180,20 @@ export default function RichEditor({ content, onChange, placeholder = "What's on
         <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Divider">{icons.divider}</ToolbarButton>
 
         {/* Emoji picker */}
-        <div className="relative">
-          <ToolbarButton onClick={() => setShowEmojis(!showEmojis)} title="Emoji">{icons.emoji}</ToolbarButton>
-          {showEmojis && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowEmojis(false)} />
-              <div className="absolute left-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg p-2 grid grid-cols-8 gap-1 z-50 w-[220px]">
-                {EMOJIS.map(e => (
-                  <button key={e} type="button"
-                    onClick={() => { editor.chain().focus().insertContent(e).run(); setShowEmojis(false) }}
-                    className="w-6 h-6 flex items-center justify-center hover:bg-card-hover rounded transition text-sm">
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        <Popover open={showEmojis} onOpenChange={setShowEmojis}>
+          <PopoverTrigger asChild>
+            <ToolbarButton onClick={() => setShowEmojis(!showEmojis)} title="Emoji">{icons.emoji}</ToolbarButton>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[220px] p-2 grid grid-cols-8 gap-1">
+            {EMOJIS.map(e => (
+              <button key={e} type="button"
+                onClick={() => { editor.chain().focus().insertContent(e).run(); setShowEmojis(false) }}
+                className="w-6 h-6 flex items-center justify-center hover:bg-card-hover rounded transition text-sm">
+                {e}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
 
         <span className="text-[10px] text-text-tertiary ml-1">Type @ to mention</span>
       </div>
