@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useState, useEffect, useCallback } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { getNotifications, markNotificationsRead } from "@/lib/api"
+import { supabase } from "@/lib/supabase"
 import AuthGate from "@/components/AuthGate"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
@@ -133,15 +134,34 @@ function NavShell({ children }) {
 
   useEffect(() => {
     loadNotifications()
-    const interval = setInterval(loadNotifications, 30000)
 
+    // Real-time notification subscription via Supabase
+    let channel
     if (displayName) {
+      channel = supabase
+        .channel('notifications-realtime')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient=eq.${displayName}`,
+        }, () => {
+          loadNotifications()
+        })
+        .subscribe()
+
       import('@/lib/push').then(({ registerPush }) => {
         registerPush(displayName).catch(console.error)
       })
     }
 
-    return () => clearInterval(interval)
+    // Fallback polling every 60s in case realtime drops
+    const interval = setInterval(loadNotifications, 60000)
+
+    return () => {
+      clearInterval(interval)
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [loadNotifications, displayName])
 
   async function handleMarkAllRead() {

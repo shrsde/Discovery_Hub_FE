@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio } from '@/lib/api'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications } from '@/lib/api'
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
 import RichEditor, { RichContent } from '@/components/RichEditor'
 import { useAuth } from '@/lib/auth-context'
+import { supabase } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 function VideoEmbed({ url }) {
@@ -79,12 +80,202 @@ function MediaPreview({ item }) {
     return (
       <a href={item.media_url} target="_blank" rel="noopener"
         className="mt-2 flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition w-fit">
-        <span>📄</span> {item.media_name || 'Download document'}
+        <span className="glyph">◈</span> {item.media_name || 'Download document'}
       </a>
     )
   }
 
   return null
+}
+
+// Extract URLs from text/html and show previews
+function LinkPreviews({ text }) {
+  const [previews, setPreviews] = useState([])
+  const fetchedRef = useRef(false)
+
+  useEffect(() => {
+    if (fetchedRef.current) return
+    const plainText = (text || '').replace(/<[^>]*>/g, ' ')
+    const urlRegex = /https?:\/\/[^\s<>"']+/g
+    const urls = [...new Set(plainText.match(urlRegex) || [])]
+      .filter(u => !u.includes('meet.google.com') && !u.includes('youtube.com') && !u.includes('youtu.be') && !u.includes('vimeo.com') && !u.includes('loom.com'))
+      .slice(0, 3)
+
+    if (urls.length === 0) return
+    fetchedRef.current = true
+
+    urls.forEach(async (url) => {
+      try {
+        const res = await getLinkPreview(url)
+        if (res.success) {
+          setPreviews(prev => [...prev, res.data])
+        }
+      } catch (e) { /* ignore failed previews */ }
+    })
+  }, [text])
+
+  if (previews.length === 0) return null
+
+  return (
+    <div className="mt-2 space-y-2">
+      {previews.map((p, i) => (
+        <a key={i} href={p.url} target="_blank" rel="noopener"
+          className="block glass-subtle rounded-xl overflow-hidden card-lift">
+          <div className="flex">
+            {p.image && (
+              <div className="w-24 h-20 shrink-0 bg-card-hover overflow-hidden">
+                <img src={p.image} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display = 'none'} />
+              </div>
+            )}
+            <div className="p-2.5 min-w-0 flex-1">
+              <div className="text-[10px] text-text-tertiary uppercase tracking-wide">{p.site_name}</div>
+              <div className="text-xs font-semibold text-text line-clamp-1 mt-0.5">{p.title}</div>
+              {p.description && <div className="text-[11px] text-text-secondary line-clamp-2 mt-0.5">{p.description}</div>}
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  )
+}
+
+// Thread/Replies component
+function ThreadReplies({ feedId, displayName, initialCount }) {
+  const [expanded, setExpanded] = useState(false)
+  const [replies, setReplies] = useState([])
+  const [replyText, setReplyText] = useState('')
+  const [posting, setPosting] = useState(false)
+  const [showComposer, setShowComposer] = useState(false)
+  const replyCount = replies.length || initialCount || 0
+
+  async function loadReplies() {
+    const res = await getReplies(feedId)
+    setReplies(res.data || [])
+  }
+
+  useEffect(() => {
+    if (expanded) loadReplies()
+  }, [expanded])
+
+  async function handleReply(e) {
+    e.preventDefault()
+    if (!replyText.trim()) return
+    setPosting(true)
+    try {
+      await postReply(feedId, displayName || 'Wes', replyText.trim())
+      setReplyText('')
+      setShowComposer(false)
+      await loadReplies()
+    } finally { setPosting(false) }
+  }
+
+  function copyThreadLink() {
+    const url = `${window.location.origin}/feed?thread=${feedId}`
+    navigator.clipboard.writeText(url)
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="flex items-center gap-3">
+        <button onClick={() => { setExpanded(!expanded); setShowComposer(false) }}
+          className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200 flex items-center gap-1">
+          <span className="glyph text-sm">&#x25E7;</span>
+          {replyCount > 0 ? `${replyCount} repl${replyCount === 1 ? 'y' : 'ies'}` : 'Reply'}
+        </button>
+        <button onClick={() => { setShowComposer(!showComposer); if (!expanded) setExpanded(true) }}
+          className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200">
+          Reply
+        </button>
+        <button onClick={copyThreadLink}
+          className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200">
+          Link
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="mt-2 pl-4 border-l-2 border-[rgba(0,0,0,0.06)] space-y-2">
+          {replies.map(r => (
+            <div key={r.id} className="flex items-start gap-2">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 mt-0.5 ${r.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
+                {r.author?.[0]}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-text">{r.author}</span>
+                  <span className="text-[10px] text-text-tertiary">{timeAgo(r.created_at)}</span>
+                </div>
+                {r.text?.startsWith('<') ? (
+                  <div className="text-sm mt-0.5"><RichContent html={r.text} /></div>
+                ) : (
+                  <p className="text-sm text-text mt-0.5 whitespace-pre-wrap">{r.text}</p>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {showComposer && (
+            <form onSubmit={handleReply} className="space-y-2 mt-2">
+              <RichEditor content={replyText} onChange={setReplyText} placeholder="Write a reply..." />
+              <div className="flex items-center gap-2">
+                <button type="submit" disabled={posting || !replyText.trim()}
+                  className="text-xs px-4 py-1.5 bg-accent text-white rounded-full font-medium disabled:opacity-40 transition-all duration-200">
+                  {posting ? 'Replying...' : 'Reply'}
+                </button>
+                <button type="button" onClick={() => setShowComposer(false)}
+                  className="text-xs text-text-tertiary hover:text-text transition-colors duration-200">Cancel</button>
+              </div>
+            </form>
+          )}
+
+          {!showComposer && (
+            <button onClick={() => setShowComposer(true)}
+              className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200 mt-1">
+              + Add reply
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Active Threads sidebar section
+function ActiveThreads({ feed, onThreadClick }) {
+  const threads = feed
+    .filter(f => (f.reply_count || 0) > 0)
+    .sort((a, b) => new Date(b.last_reply_at || b.created_at) - new Date(a.last_reply_at || a.created_at))
+    .slice(0, 8)
+
+  if (threads.length === 0) return null
+
+  return (
+    <div className="glass rounded-2xl p-3 mb-4">
+      <div className="section-label mb-2 flex items-center gap-1.5">
+        <span className="glyph glyph-pulse text-sm">&#x25C8;</span>
+        Active Threads
+      </div>
+      <div className="space-y-1.5">
+        {threads.map(t => (
+          <button key={t.id} onClick={() => onThreadClick(t.id)}
+            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/40 transition-colors duration-200 group">
+            <div className="flex items-center gap-2">
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0 ${t.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
+                {t.author?.[0]}
+              </span>
+              <span className="text-xs text-text truncate flex-1">
+                {(t.text || '').replace(/<[^>]*>/g, '').slice(0, 50)}
+              </span>
+              <span className="tag tag-primary text-[9px] shrink-0">{t.reply_count}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5 pl-7">
+              {t.thread_tag && <span className="tag tag-blue text-[8px]">{t.thread_tag}</span>}
+              <span className="text-[10px] text-text-tertiary">{timeAgo(t.last_reply_at || t.created_at)}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function TaggedText({ text }) {
@@ -136,10 +327,10 @@ export default function FeedPage() {
   const [selectedDay, setSelectedDay] = useState(null)
   const fileInputRef = useRef(null)
 
-  async function loadFeed() {
+  const loadFeed = useCallback(async () => {
     const r = await getFeed(view)
     setFeed(r.data || [])
-  }
+  }, [view])
 
   useEffect(() => {
     setLoading(true)
@@ -147,7 +338,33 @@ export default function FeedPage() {
       loadFeed(),
       getInterviews().then(r => setInterviews(r.data || [])),
     ]).finally(() => setLoading(false))
-  }, [view])
+  }, [loadFeed])
+
+  // Real-time subscription for new feed posts and notifications
+  useEffect(() => {
+    const feedChannel = supabase
+      .channel('feed-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'feed' }, () => {
+        loadFeed()
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'feed' }, () => {
+        loadFeed()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(feedChannel) }
+  }, [loadFeed])
+
+  // Open thread from URL param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const threadId = params.get('thread')
+    if (threadId) {
+      setTimeout(() => {
+        document.getElementById(`post-${threadId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 500)
+    }
+  }, [feed])
 
   async function handleFileUpload(e) {
     const file = e.target.files?.[0]
@@ -190,7 +407,6 @@ export default function FeedPage() {
         title: meetingTitle.trim(),
         organizer: meetingOrganizer,
       })
-      // Open the auto-generated Meet link
       if (res.data?.meet_link && res.data.meet_link !== 'https://meet.google.com/new') {
         window.open(res.data.meet_link, '_blank')
       }
@@ -205,8 +421,6 @@ export default function FeedPage() {
     setProcessingTranscript(true)
     try {
       const feedItem = feed.find(f => f.id === feedItemId)
-
-      // Find the meeting record
       const meetingsRes = await getMeetings()
       const meetings = meetingsRes.data || []
       const meeting = meetings.find(m => feedItem?.text?.includes(m.title))
@@ -223,13 +437,11 @@ export default function FeedPage() {
         summary = res.data?.parsed_summary || ''
       }
 
-      // Build rich meeting recap for the feed post
       const meetingMeta = `Participants: ${participants} | Duration: ${duration}`
       const fullSummary = summary
         ? `${meetingMeta}\n\n${summary}`
         : `${meetingMeta}\n\nTranscript uploaded (${meetingTranscript.trim().split(/\s+/).length} words)`
 
-      // Update the original feed post with summary + store transcript in text
       await updateFeed(feedItemId, {
         summary: fullSummary,
         text: feedItem.text,
@@ -242,7 +454,6 @@ export default function FeedPage() {
     } finally { setProcessingTranscript(false) }
   }
 
-  // Extract tags from text
   function extractTags(text) {
     const tags = []
     if (text.includes('@Wes') || text.includes('data-mention="Wes"')) tags.push('Wes')
@@ -306,6 +517,10 @@ export default function FeedPage() {
     setSelectedPosts(next)
   }
 
+  function scrollToThread(id) {
+    document.getElementById(`post-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   // Filter + search + sort
   let filtered = feed
   if (searchQuery.trim()) {
@@ -313,7 +528,8 @@ export default function FeedPage() {
     filtered = filtered.filter(f =>
       f.text?.toLowerCase().includes(q) ||
       f.author?.toLowerCase().includes(q) ||
-      f.summary?.toLowerCase().includes(q)
+      f.summary?.toLowerCase().includes(q) ||
+      f.thread_tag?.toLowerCase().includes(q)
     )
   }
   if (filterType !== 'all') {
@@ -326,7 +542,6 @@ export default function FeedPage() {
   const pinned = filtered.filter(f => f.pinned)
   const unpinned = filtered.filter(f => !f.pinned)
 
-  // Group unpinned by day
   const grouped = {}
   unpinned.forEach(item => {
     const day = new Date(item.created_at).toLocaleDateString('en-US', {
@@ -356,7 +571,7 @@ export default function FeedPage() {
     }
 
     return (
-      <div className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all ${
+      <div id={`post-${item.id}`} className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all ${
         isSelected ? 'border-accent ring-2 ring-accent/20' : item.pinned ? 'border-amber-300 bg-amber-50/50' : ''
       }`}>
         {selectMode && (
@@ -373,7 +588,8 @@ export default function FeedPage() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ft.color}`}>{ft.emoji} {ft.label}</span>
-            {item.pinned && <span className="text-xs text-amber-600">📌 Pinned</span>}
+            {item.thread_tag && <span className="tag tag-blue">{item.thread_tag}</span>}
+            {item.pinned && <span className="text-xs text-amber-600 flex items-center gap-1"><span className="glyph text-sm">&#x25C6;</span> Pinned</span>}
             {hasMentionForWes && <span className="text-[10px] px-1.5 py-0.5 rounded bg-wes/10 text-wes font-semibold">@Wes</span>}
             {hasMentionForGibb && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gibb/10 text-gibb font-semibold">@Gibb</span>}
             <span className="text-text-tertiary text-xs ml-auto">{timeAgo(item.created_at)}</span>
@@ -401,47 +617,45 @@ export default function FeedPage() {
             <p className="text-sm text-text mt-1.5 whitespace-pre-wrap"><TaggedText text={item.text} /></p>
           )}
 
+          {/* Link previews */}
+          <LinkPreviews text={item.text} />
+
           {/* Meeting-specific UI */}
           {item.type === 'meeting' && (
             <div className="mt-2 space-y-2">
-              {/* Meet link — show when no summary yet */}
               {!item.summary && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <a href={item.media_url || 'https://meet.google.com/new'} target="_blank" rel="noopener"
                       className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
-                      📞 Join Google Meet
+                      <span className="glyph">◎</span> Join Google Meet
                     </a>
                     <span className="inline-flex items-center gap-1 text-[10px] text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full font-medium">
-                      🤖 Bot will auto-join & record
+                      <span className="glyph glyph-pulse">&#x25C9;</span> Bot will auto-join
                     </span>
                   </div>
                 </div>
               )}
 
-              {/* Meeting recap — show after transcript is processed */}
               {item.summary && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-2">
+                <div className="glass-subtle rounded-2xl p-4 space-y-2 gradient-purple">
                   <div className="flex items-center justify-between">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Meeting Recap</div>
-                    <span className="text-[10px] text-indigo-400 bg-indigo-100 px-2 py-0.5 rounded-full">Completed</span>
+                    <div className="section-label text-indigo-600">Meeting Recap</div>
+                    <span className="tag tag-green">Completed</span>
                   </div>
                   <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed">{item.summary}</div>
                 </div>
               )}
 
-              {/* Post-meeting form */}
               {!item.summary && addingTranscriptTo !== item.id && (
                 <button onClick={() => { setAddingTranscriptTo(item.id); setMeetingTranscript(''); setMeetingDuration('') }}
                   className="text-[11px] text-indigo-600 hover:text-indigo-800 transition font-medium">
-                  Meeting done? Add recap →
+                  Meeting done? Add recap
                 </button>
               )}
               {addingTranscriptTo === item.id && (
                 <div className="glass rounded-2xl p-3 space-y-3">
                   <div className="text-xs font-semibold text-text">Post-Meeting Recap</div>
-
-                  {/* Participants */}
                   <div>
                     <label className="section-label block mb-1">Participants</label>
                     <div className="flex gap-1.5">
@@ -459,20 +673,16 @@ export default function FeedPage() {
                       ))}
                     </div>
                   </div>
-
-                  {/* Duration */}
                   <div>
                     <label className="section-label block mb-1">Call Duration</label>
                     <input value={meetingDuration} onChange={e => setMeetingDuration(e.target.value)}
                       placeholder="e.g. 45 min" className="!text-xs" />
                   </div>
-
-                  {/* Transcript — upload audio or paste */}
                   <div>
                     <label className="section-label block mb-1">Transcript</label>
                     <div className="flex items-center gap-2 mb-2">
                       <label className="text-xs px-3 py-1.5 rounded-full bg-card border border-border text-text-secondary hover:bg-white hover:border-accent hover:text-accent transition cursor-pointer font-medium">
-                        🎙️ Upload recording
+                        <span className="glyph">◎</span> Upload recording
                         <input type="file" className="hidden" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.webm"
                           onChange={async (e) => {
                             const file = e.target.files?.[0]
@@ -493,11 +703,10 @@ export default function FeedPage() {
                     <textarea value={meetingTranscript} onChange={e => setMeetingTranscript(e.target.value)}
                       rows={6} placeholder="Paste the full meeting transcript here..." className="resize-none text-xs" />
                   </div>
-
                   <div className="flex gap-2">
                     <button onClick={() => handleAddMeetingTranscript(item.id)}
                       disabled={processingTranscript || !meetingTranscript.trim()}
-                      className="text-xs px-4 py-2 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition disabled:opacity-40">
+                      className="text-xs px-4 py-2 bg-accent text-white rounded-full font-semibold hover:bg-accent-light transition disabled:opacity-40">
                       {processingTranscript ? 'Generating summary...' : 'Process & Post Recap'}
                     </button>
                     <button onClick={() => setAddingTranscriptTo(null)}
@@ -514,8 +723,12 @@ export default function FeedPage() {
               Linked: {interviews.find(i => i.id === item.linked_interview_id)?.company || 'Interview'}
             </span>
           )}
+
+          {/* Thread replies */}
+          <ThreadReplies feedId={item.id} displayName={displayName} initialCount={item.reply_count} />
+
           {!selectMode && !editing && (
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 mt-1">
               <button onClick={() => { setEditing(true); setEditText(item.text) }}
                 className="text-[11px] text-text-tertiary hover:text-text transition">
                 Edit
@@ -568,7 +781,7 @@ export default function FeedPage() {
             <>
               <button onClick={() => setShowMeetingModal(true)}
                 className="text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
-                📞 Meeting
+                <span className="glyph">◎</span> Meeting
               </button>
               <button onClick={() => setSelectMode(true)}
                 className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">Select</button>
@@ -615,11 +828,11 @@ export default function FeedPage() {
 
             {mediaUrl && (
               <div className="flex items-center gap-2 bg-card-hover rounded-lg px-3 py-2">
-                <span className="text-sm">
-                  {mediaType === 'image' && '🖼️'}
-                  {mediaType === 'video' && '🎥'}
-                  {mediaType === 'video_link' && '🔗'}
-                  {mediaType === 'document' && '📄'}
+                <span className="glyph text-sm">
+                  {mediaType === 'image' && '◈'}
+                  {mediaType === 'video' && '▸'}
+                  {mediaType === 'video_link' && '◎'}
+                  {mediaType === 'document' && '◇'}
                 </span>
                 <span className="text-xs text-text-secondary flex-1 truncate">{mediaName || mediaUrl}</span>
                 <button type="button" onClick={clearMedia} className="text-xs text-red-500 hover:text-red-700">Remove</button>
@@ -634,7 +847,7 @@ export default function FeedPage() {
                     onChange={handleFileUpload} />
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
                     className="text-xs px-3 py-1.5 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">
-                    {uploading ? 'Uploading...' : '📎 Attach'}
+                    {uploading ? 'Uploading...' : '+ Attach'}
                   </button>
                   <div className="flex items-center gap-1">
                     <input value={videoLink} onChange={e => setVideoLink(e.target.value)}
@@ -666,10 +879,13 @@ export default function FeedPage() {
         {/* Timeline sidebar — desktop only */}
         <div className="hidden md:block w-28 shrink-0">
           <div className="sticky top-40 space-y-1 max-h-[60vh] overflow-y-auto">
+            {/* Active Threads */}
+            <ActiveThreads feed={feed} onThreadClick={scrollToThread} />
+
             {pinned.length > 0 && (
               <button onClick={() => { setSelectedDay(null); document.getElementById('pinned')?.scrollIntoView({ behavior: 'smooth' }) }}
                 className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-semibold text-amber-600 hover:bg-amber-50 transition">
-                📌 Pinned
+                <span className="glyph">&#x25C6;</span> Pinned
               </button>
             )}
             {dayKeys.map(day => {
@@ -699,7 +915,7 @@ export default function FeedPage() {
             <>
               {pinned.length > 0 && (
                 <div id="pinned">
-                  <div className="section-label text-amber-600 mb-2">📌 Pinned</div>
+                  <div className="section-label text-amber-600 mb-2"><span className="glyph">&#x25C6;</span> Pinned</div>
                   <div className="space-y-2">
                     {pinned.map(item => <FeedItem key={item.id} item={item} />)}
                   </div>
@@ -743,10 +959,10 @@ export default function FeedPage() {
               ))}
             </div>
             <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
-              placeholder="Meeting title — e.g. Weekly sync" />
-            <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated and the recording bot will join automatically.</p>
+              placeholder="Meeting title" />
+            <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Fireflies recording bot joins automatically.</p>
             <button type="submit" disabled={creatingMeeting || !meetingTitle.trim()}
-              className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
+              className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40">
               {creatingMeeting ? 'Creating meeting...' : 'Create Meeting'}
             </button>
           </form>
