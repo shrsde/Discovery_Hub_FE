@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications } from '@/lib/api'
+import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications, createIndexEntry } from '@/lib/api'
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
 import RichEditor, { RichContent } from '@/components/RichEditor'
 import { useAuth } from '@/lib/auth-context'
@@ -175,25 +175,19 @@ function ThreadReplies({ feedId, displayName, initialCount }) {
   }
 
   return (
-    <div className="mt-2">
-      <div className="flex items-center gap-3">
-        <button onClick={() => { setExpanded(!expanded); setShowComposer(false) }}
-          className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200 flex items-center gap-1">
-          <span className="glyph text-sm">&#x25E7;</span>
-          {replyCount > 0 ? `${replyCount} repl${replyCount === 1 ? 'y' : 'ies'}` : 'Reply'}
-        </button>
-        <button onClick={() => { setShowComposer(!showComposer); if (!expanded) setExpanded(true) }}
-          className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200">
-          Reply
-        </button>
-        <button onClick={copyThreadLink}
-          className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200">
-          Link
-        </button>
-      </div>
+    <>
+      <button onClick={() => { setShowComposer(!showComposer); if (!expanded) setExpanded(true) }}
+        className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200 flex items-center gap-1">
+        <span className="glyph text-xs">&#x25E7;</span>
+        {replyCount > 0 ? `${replyCount} repl${replyCount === 1 ? 'y' : 'ies'}` : 'Reply'}
+      </button>
+      <button onClick={copyThreadLink}
+        className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200">
+        Link
+      </button>
 
       {expanded && (
-        <div className="mt-2 pl-4 border-l-2 border-[rgba(0,0,0,0.06)] space-y-2">
+        <div className="!flex-none w-full mt-2 pl-4 border-l-2 border-[rgba(0,0,0,0.06)] space-y-2" style={{ flexBasis: '100%' }}>
           {replies.map(r => (
             <div key={r.id} className="flex items-start gap-2">
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 mt-0.5 ${r.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
@@ -227,15 +221,9 @@ function ThreadReplies({ feedId, displayName, initialCount }) {
             </form>
           )}
 
-          {!showComposer && (
-            <button onClick={() => setShowComposer(true)}
-              className="text-[11px] text-text-tertiary hover:text-text transition-colors duration-200 mt-1">
-              + Add reply
-            </button>
-          )}
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -319,6 +307,12 @@ export default function FeedPage() {
   const [meetingOrganizer, setMeetingOrganizer] = useState('Wes')
   const [creatingMeeting, setCreatingMeeting] = useState(false)
   const [meetingLink, setMeetingLink] = useState('')
+  const [meetingScheduleType, setMeetingScheduleType] = useState('now')
+  const [meetingDate, setMeetingDate] = useState('')
+  const [meetingTime, setMeetingTime] = useState('')
+  const [meetingParticipantTags, setMeetingParticipantTags] = useState(['Wes', 'Gibb'])
+  const [meetingExtraEmail, setMeetingExtraEmail] = useState('')
+  const [meetingExtraEmails, setMeetingExtraEmails] = useState([])
   const [addingTranscriptTo, setAddingTranscriptTo] = useState(null)
   const [meetingTranscript, setMeetingTranscript] = useState('')
   const [meetingDuration, setMeetingDuration] = useState('')
@@ -398,19 +392,40 @@ export default function FeedPage() {
     setMediaName('')
   }
 
+  function addExtraEmail() {
+    const email = meetingExtraEmail.trim()
+    if (email && email.includes('@') && !meetingExtraEmails.includes(email)) {
+      setMeetingExtraEmails(prev => [...prev, email])
+      setMeetingExtraEmail('')
+    }
+  }
+
   async function handleCreateMeeting(e) {
     e.preventDefault()
     if (!meetingTitle.trim()) return
     setCreatingMeeting(true)
     try {
+      const scheduledAt = meetingScheduleType === 'scheduled' && meetingDate && meetingTime
+        ? new Date(`${meetingDate}T${meetingTime}`).toISOString()
+        : meetingScheduleType === 'scheduled' && meetingDate
+        ? new Date(meetingDate).toISOString()
+        : null
+
       const res = await createMeeting({
         title: meetingTitle.trim(),
         organizer: meetingOrganizer,
+        attendees: meetingParticipantTags,
+        scheduled_at: scheduledAt,
       })
       if (res.data?.meet_link && res.data.meet_link !== 'https://meet.google.com/new') {
         window.open(res.data.meet_link, '_blank')
       }
       setMeetingTitle('')
+      setMeetingScheduleType('now')
+      setMeetingDate('')
+      setMeetingTime('')
+      setMeetingParticipantTags(['Wes', 'Gibb'])
+      setMeetingExtraEmails([])
       setShowMeetingModal(false)
       await loadFeed()
     } finally { setCreatingMeeting(false) }
@@ -559,6 +574,46 @@ export default function FeedPage() {
     const [editing, setEditing] = useState(false)
     const [editText, setEditText] = useState(item.text)
     const [savingEdit, setSavingEdit] = useState(false)
+    const [meetingFiles, setMeetingFiles] = useState([])
+    const [uploadingMeetingFile, setUploadingMeetingFile] = useState(false)
+    const [indexing, setIndexing] = useState(false)
+    const [indexed, setIndexed] = useState(false)
+
+    async function handleIndexThis() {
+      setIndexing(true)
+      try {
+        const plainText = (item.text || '').replace(/<[^>]*>/g, '').slice(0, 200)
+        await createIndexEntry({
+          title: plainText.slice(0, 80) || `${item.author}'s ${ft.label}`,
+          body: item.text,
+          source_type: 'feed',
+          source_id: item.id,
+          tags: [ft.label, ...(item.tags || []), item.thread_tag].filter(Boolean),
+          author: item.author,
+        })
+        setIndexed(true)
+        setTimeout(() => setIndexed(false), 3000)
+      } catch (e) { alert('Failed to index: ' + e.message) }
+      finally { setIndexing(false) }
+    }
+    const meetingFileRef = useRef(null)
+
+    async function handleMeetingFileUpload(e) {
+      const file = e.target.files?.[0]
+      if (!file) return
+      setUploadingMeetingFile(true)
+      try {
+        const res = await uploadFeedMedia(file)
+        if (res.url) {
+          setMeetingFiles(prev => [...prev, { url: res.url, name: res.mediaName || file.name, type: res.mediaType }])
+          // Append file link to the post text
+          const fileLink = `\n<p><a href="${res.url}" target="_blank">${res.mediaName || file.name}</a></p>`
+          await updateFeed(item.id, { text: (item.text || '') + fileLink })
+          await loadFeed()
+        }
+      } catch (err) { alert('Upload failed: ' + err.message) }
+      finally { setUploadingMeetingFile(false) }
+    }
 
     async function handleSaveEdit() {
       if (!editText.trim()) return
@@ -572,7 +627,11 @@ export default function FeedPage() {
 
     return (
       <div id={`post-${item.id}`} className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all ${
-        isSelected ? 'border-accent ring-2 ring-accent/20' : item.pinned ? 'border-amber-300 bg-amber-50/50' : ''
+        isSelected ? 'border-accent ring-2 ring-accent/20'
+        : item.pinned ? 'border-amber-300 bg-amber-50/50'
+        : item.type === 'meeting' && item.summary ? 'gradient-purple gradient-bg-purple'
+        : item.type === 'meeting' ? 'gradient-blue gradient-bg-blue'
+        : ''
       }`}>
         {selectMode && (
           <button onClick={() => toggleSelect(item.id)}
@@ -637,20 +696,55 @@ export default function FeedPage() {
                 </div>
               )}
 
-              {item.summary && (
-                <div className="glass-subtle rounded-2xl p-4 space-y-2 gradient-purple">
+              {item.summary && (() => {
+                // Extract participants and duration from summary
+                const participantMatch = item.summary.match(/Participants:\s*([^\n|]+)/)
+                const durationMatch = item.summary.match(/Duration:\s*([^\n]+)/)
+                const participants = participantMatch ? participantMatch[1].trim().split(',').map(p => p.trim()) : []
+                const duration = durationMatch ? durationMatch[1].trim() : ''
+                const summaryBody = item.summary.replace(/^Participants:.*\n*/m, '').replace(/^.*Duration:.*\n*/m, '').trim()
+
+                return (
+                <div className="glass-subtle rounded-2xl p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="section-label text-indigo-600">Meeting Recap</div>
+                    <div className="section-label text-indigo-600 flex items-center gap-1.5">
+                      <span className="glyph">◎</span> Meeting Recap
+                    </div>
                     <span className="tag tag-green">Completed</span>
                   </div>
-                  <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed">{item.summary}</div>
+                  {(participants.length > 0 || duration) && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {participants.map(p => (
+                        <span key={p} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          p === 'Wes' ? 'bg-wes/10 text-wes' : p === 'Gibb' ? 'bg-gibb/10 text-gibb' : 'bg-accent/5 text-text-secondary'
+                        }`}>
+                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white ${
+                            p === 'Wes' ? 'bg-wes' : p === 'Gibb' ? 'bg-gibb' : 'bg-accent'
+                          }`}>{p[0]}</span>
+                          {p}
+                        </span>
+                      ))}
+                      {duration && <span className="text-[10px] text-text-tertiary">{duration}</span>}
+                    </div>
+                  )}
+                  <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed">{summaryBody}</div>
                 </div>
-              )}
+                )
+              })()}
+
+              {/* Upload files to meeting */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <input ref={meetingFileRef} type="file" className="hidden" accept="*/*" onChange={handleMeetingFileUpload} />
+                <button type="button" onClick={() => meetingFileRef.current?.click()} disabled={uploadingMeetingFile}
+                  className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200 border border-[rgba(0,0,0,0.08)]">
+                  {uploadingMeetingFile ? 'Uploading...' : '+ Upload Files'}
+                </button>
+              </div>
 
               {!item.summary && addingTranscriptTo !== item.id && (
                 <button onClick={() => { setAddingTranscriptTo(item.id); setMeetingTranscript(''); setMeetingDuration('') }}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-800 transition font-medium">
-                  Meeting done? Add recap
+                  className="text-[11px] text-text-tertiary hover:text-text transition font-medium">
+                  Meeting done? Add recap manually
                 </button>
               )}
               {addingTranscriptTo === item.id && (
@@ -728,11 +822,15 @@ export default function FeedPage() {
                   <div className="section-label text-green-700 flex items-center gap-1.5">
                     <span className="glyph glyph-float">◇</span> Interview
                   </div>
-                  {interview?.score_total != null && (
-                    <span className={`text-sm font-extrabold ${interview.score_total >= 22 ? 'text-score-green' : interview.score_total >= 18 ? 'text-score-orange' : 'text-score-red'}`}>
-                      {interview.score_total}/30
-                    </span>
-                  )}
+                  {interview && (() => {
+                    const pains = Array.isArray(interview.pain_points) ? interview.pain_points.filter(p => p.description?.trim()) : []
+                    const s = Math.min(10, pains.length * 2 + (pains.some(p => p.dollar_impact?.trim()) ? 2 : 0) + (interview.biggest_signal?.trim() ? 2 : 0) + (interview.willingness_to_pay?.trim() ? 2 : 0) + Math.round((interview.confidence || 0) / 2))
+                    return (
+                      <span className={`text-sm font-extrabold ${s >= 7 ? 'text-score-green' : s >= 4 ? 'text-score-orange' : 'text-score-red'}`}>
+                        {s}<span className="text-xs font-normal opacity-60">/10</span>
+                      </span>
+                    )
+                  })()}
                 </div>
                 <div className="text-sm font-semibold text-text">
                   {interview?.interviewee_name || 'Unknown'} <span className="text-text-secondary font-normal">at</span> {interview?.company || 'Unknown'}
@@ -760,11 +858,11 @@ export default function FeedPage() {
             )
           })()}
 
-          {/* Thread replies */}
-          <ThreadReplies feedId={item.id} displayName={displayName} initialCount={item.reply_count} />
-
+          {/* Inline actions row */}
           {!selectMode && !editing && (
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex flex-wrap items-center gap-3 mt-2 pt-2 border-t border-[rgba(0,0,0,0.04)]">
+              <ThreadReplies feedId={item.id} displayName={displayName} initialCount={item.reply_count} />
+              <span className="w-px h-3 bg-[rgba(0,0,0,0.08)]" />
               <button onClick={() => { setEditing(true); setEditText(item.text) }}
                 className="text-[11px] text-text-tertiary hover:text-text transition">
                 Edit
@@ -784,6 +882,11 @@ export default function FeedPage() {
                   Archive
                 </button>
               )}
+              <span className="w-px h-3 bg-[rgba(0,0,0,0.08)]" />
+              <button onClick={handleIndexThis} disabled={indexing}
+                className={`text-[11px] font-medium transition-colors duration-200 ${indexed ? 'text-green-600' : 'text-accent hover:text-accent-light'}`}>
+                {indexing ? 'Indexing...' : indexed ? 'Indexed' : '⬡ Index This'}
+              </button>
             </div>
           )}
         </div>
@@ -817,7 +920,7 @@ export default function FeedPage() {
             <>
               <button onClick={() => setShowMeetingModal(true)}
                 className="text-xs px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition font-medium">
-                <span className="glyph">◎</span> Meeting
+                <span className="glyph">◎</span> Create a Meeting
               </button>
               <button onClick={() => setSelectMode(true)}
                 className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">Select</button>
@@ -826,38 +929,39 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Filters row */}
-      <div className="flex items-center gap-2 flex-wrap mb-4">
-        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search feed..." className="!rounded-full flex-1 !text-xs" />
-        <div className="flex gap-1">
-          {[
-            { value: 'active', label: 'Active' },
-            { value: 'archived', label: 'Archived' },
-            { value: 'all', label: 'All' },
-          ].map(v => (
-            <button key={v.value} onClick={() => { setView(v.value); setSelectedPosts(new Set()) }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                view === v.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
-              }`}>{v.label}</button>
-          ))}
+      {/* Sticky composer + search/filters */}
+      <div className="sticky top-14 z-30 bg-[#fafafa] pb-4 space-y-3">
+        {/* Search + filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search feed..." className="!rounded-full flex-1 !text-xs" />
+          <div className="flex gap-1">
+            {[
+              { value: 'active', label: 'Active' },
+              { value: 'archived', label: 'Archived' },
+              { value: 'all', label: 'All' },
+            ].map(v => (
+              <button key={v.value} onClick={() => { setView(v.value); setSelectedPosts(new Set()) }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  view === v.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
+                }`}>{v.label}</button>
+            ))}
+          </div>
+          <select value={filterType} onChange={e => setFilterType(e.target.value)}
+            className="!w-auto !rounded-full text-xs !py-1.5">
+            <option value="all">All types</option>
+            {FEED_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
+            ))}
+          </select>
+          {(searchQuery || filterType !== 'all') && (
+            <button onClick={() => { setSearchQuery(''); setFilterType('all') }}
+              className="text-xs text-text-tertiary hover:text-text transition">Clear</button>
+          )}
         </div>
-        <select value={filterType} onChange={e => setFilterType(e.target.value)}
-          className="!w-auto !rounded-full text-xs !py-1.5">
-          <option value="all">All types</option>
-          {FEED_TYPES.map(t => (
-            <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
-          ))}
-        </select>
-        {(searchQuery || filterType !== 'all') && (
-          <button onClick={() => { setSearchQuery(''); setFilterType('all') }}
-            className="text-xs text-text-tertiary hover:text-text transition">Clear</button>
-        )}
-      </div>
 
-      {/* Sticky composer */}
-      {view !== 'archived' && (
-        <div className="sticky top-14 z-30 bg-[#fafafa] pb-4">
+        {/* Composer */}
+        {view !== 'archived' && (
           <form onSubmit={handlePost} className="glass rounded-2xl p-4 space-y-3">
             <RichEditor content={text} onChange={setText}
               placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
@@ -907,8 +1011,8 @@ export default function FeedPage() {
               </button>
             </div>
           </form>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Main content with timeline sidebar */}
       <div className="flex gap-6">
@@ -979,27 +1083,105 @@ export default function FeedPage() {
 
       {/* Meeting creation modal */}
       <Dialog open={showMeetingModal} onOpenChange={setShowMeetingModal}>
-        <DialogContent className="glass-strong rounded-xl border-0 shadow-xl w-full max-w-sm p-5 space-y-4">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold text-text">Create Meeting</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateMeeting} className="space-y-3">
-            <div className="flex gap-2">
-              {['Wes', 'Gibb'].map(a => (
-                <button key={a} type="button" onClick={() => setMeetingOrganizer(a)}
-                  className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
-                    meetingOrganizer === a
-                      ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
-                      : 'bg-card-hover border border-border text-text-secondary'
-                  }`}>{a}</button>
-              ))}
+        <DialogContent className="glass-strong rounded-2xl border-0 shadow-xl w-full max-w-md p-0 overflow-hidden">
+          <div className="px-5 pt-5 pb-3">
+            <DialogHeader>
+              <DialogTitle className="text-sm font-semibold text-text flex items-center gap-2">
+                <span className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs glyph">◎</span>
+                Create a Meeting
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          <form onSubmit={handleCreateMeeting} className="px-5 pb-5 space-y-4">
+            <div>
+              <label className="section-label block mb-1.5">Organizer</label>
+              <div className="flex gap-2">
+                {['Wes', 'Gibb'].map(a => (
+                  <button key={a} type="button" onClick={() => setMeetingOrganizer(a)}
+                    className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 active:scale-[0.97] ${
+                      meetingOrganizer === a
+                        ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
+                        : 'glass-subtle text-text-secondary border border-[rgba(0,0,0,0.06)]'
+                    }`}>{a}</button>
+                ))}
+              </div>
             </div>
-            <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
-              placeholder="Meeting title" />
-            <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Fireflies recording bot joins automatically.</p>
+
+            <div>
+              <label className="section-label block mb-1.5">Meeting Title</label>
+              <input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)}
+                placeholder="e.g. Weekly sync, Interview debrief" />
+            </div>
+
+            {/* Participants */}
+            <div>
+              <label className="section-label block mb-1.5">Participants</label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {['Wes', 'Gibb'].map(p => (
+                  <button key={p} type="button" onClick={() => {
+                    setMeetingParticipantTags(prev =>
+                      prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+                    )
+                  }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                      meetingParticipantTags.includes(p)
+                        ? (p === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
+                        : 'glass-subtle text-text-secondary border border-[rgba(0,0,0,0.06)]'
+                    }`}>{p}</button>
+                ))}
+                {meetingExtraEmails.map(email => (
+                  <span key={email} className="flex items-center gap-1 px-2.5 py-1 rounded-full glass-subtle text-xs text-text-secondary border border-[rgba(0,0,0,0.06)]">
+                    {email}
+                    <button type="button" onClick={() => setMeetingExtraEmails(prev => prev.filter(e => e !== email))}
+                      className="text-text-tertiary hover:text-red-500 transition-colors ml-0.5">&times;</button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                <input value={meetingExtraEmail} onChange={e => setMeetingExtraEmail(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExtraEmail() } }}
+                  placeholder="Add email invite..." className="flex-1 !text-xs" />
+                {meetingExtraEmail.trim() && (
+                  <button type="button" onClick={addExtraEmail}
+                    className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200 shrink-0">
+                    Add
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Schedule */}
+            <div>
+              <label className="section-label block mb-1.5">When</label>
+              <div className="flex gap-2 mb-2">
+                <button type="button" onClick={() => setMeetingScheduleType('now')}
+                  className={`flex-1 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${
+                    meetingScheduleType === 'now' ? 'bg-accent text-white' : 'glass-subtle text-text-secondary border border-[rgba(0,0,0,0.06)]'
+                  }`}>Right Now</button>
+                <button type="button" onClick={() => setMeetingScheduleType('scheduled')}
+                  className={`flex-1 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${
+                    meetingScheduleType === 'scheduled' ? 'bg-accent text-white' : 'glass-subtle text-text-secondary border border-[rgba(0,0,0,0.06)]'
+                  }`}>Schedule</button>
+              </div>
+              {meetingScheduleType === 'scheduled' && (
+                <div className="grid grid-cols-2 gap-2 animate-in">
+                  <input type="date" value={meetingDate} onChange={e => setMeetingDate(e.target.value)} className="!text-xs" />
+                  <input type="time" value={meetingTime} onChange={e => setMeetingTime(e.target.value)} className="!text-xs" />
+                </div>
+              )}
+            </div>
+
+            <div className="glass-subtle rounded-xl p-3 flex items-start gap-2">
+              <span className="glyph text-green-600 text-sm mt-0.5 glyph-pulse">&#x25C9;</span>
+              <div>
+                <p className="text-[11px] text-text-secondary font-medium">Auto-configured</p>
+                <p className="text-[10px] text-text-tertiary mt-0.5">Google Meet link generated. Fireflies bot joins and records automatically.</p>
+              </div>
+            </div>
+
             <button type="submit" disabled={creatingMeeting || !meetingTitle.trim()}
-              className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40">
-              {creatingMeeting ? 'Creating meeting...' : 'Create Meeting'}
+              className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all duration-200 active:scale-[0.97] disabled:opacity-40 shadow-sm">
+              {creatingMeeting ? 'Creating...' : meetingScheduleType === 'now' ? 'Start Meeting Now' : 'Schedule Meeting'}
             </button>
           </form>
         </DialogContent>

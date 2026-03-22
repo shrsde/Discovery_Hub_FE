@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getInterview, saveInterview, importTranscript, getAttachments, uploadAttachment, deleteAttachment, transcribeAudio } from '@/lib/api'
-import { PAIN_CATEGORIES, FREQUENCIES, OUTSOURCED_OPTIONS, AUTOPILOT_OPTIONS, SCORE_DIMENSIONS, scoreColor } from '@/lib/constants'
+import { PAIN_CATEGORIES, FREQUENCIES, OUTSOURCED_OPTIONS, AUTOPILOT_OPTIONS, scoreColor } from '@/lib/constants'
 
 const ORG_TYPES = ['Manufacturer / Brand', 'Broker', 'Distributor']
 
@@ -25,7 +25,6 @@ const SECTIONS = [
   { id: 'solution', label: 'Solution', glyph: '△' },
   { id: 'quotes', label: 'Quotes', glyph: '◇' },
   { id: 'assessment', label: 'Assessment', glyph: '⬡' },
-  { id: 'scoring', label: 'Scoring', glyph: '◉' },
   { id: 'notes', label: 'Notes', glyph: '◈' },
   { id: 'attachments', label: 'Attachments', glyph: '▸' },
 ]
@@ -129,6 +128,7 @@ export default function InterviewFormPage({ params }) {
   const [meetLink, setMeetLink] = useState('')
   const [pollingNotice, setPollingNotice] = useState('')
   const [activeSection, setActiveSection] = useState('details')
+  const [summaryExpanded, setSummaryExpanded] = useState(false)
   const attachInputRef = useRef(null)
   const audioInputRef = useRef(null)
 
@@ -177,6 +177,23 @@ export default function InterviewFormPage({ params }) {
     internal_notes_quotes: '',
     internal_notes_assessment: '',
   })
+
+  // Auto-resize all textareas
+  useEffect(() => {
+    function autoResize(el) {
+      el.style.height = 'auto'
+      el.style.height = el.scrollHeight + 'px'
+    }
+    function handleInput(e) {
+      if (e.target.tagName === 'TEXTAREA') autoResize(e.target)
+    }
+    document.addEventListener('input', handleInput)
+    // Resize all existing textareas on form change
+    setTimeout(() => {
+      document.querySelectorAll('textarea').forEach(autoResize)
+    }, 100)
+    return () => document.removeEventListener('input', handleInput)
+  }, [form])
 
   useEffect(() => {
     if (!isNew) {
@@ -284,7 +301,14 @@ export default function InterviewFormPage({ params }) {
     update('tech_stack', ts)
   }
 
-  const scoreTotal = SCORE_DIMENSIONS.reduce((s, d) => s + (form[d.key] || 0), 0)
+  // Pain vs Opportunity score
+  const painCount = form.pain_points.filter(p => p.description?.trim()).length
+  const hasDollarImpact = form.pain_points.some(p => p.dollar_impact?.trim())
+  const hasSignal = !!form.biggest_signal?.trim()
+  const hasWTP = !!form.willingness_to_pay?.trim()
+  const confidenceScore = form.confidence || 0
+  const opportunityScore = Math.min(10, painCount * 2 + (hasDollarImpact ? 2 : 0) + (hasSignal ? 2 : 0) + (hasWTP ? 2 : 0) + Math.round(confidenceScore / 2))
+
   const rankedPains = [...form.pain_points].filter(p => p.description).sort((a, b) => {
     const catOrder = { 'Revenue Adder': 4, 'Overhead Savings': 3, 'Speed/Efficiency': 2, 'Risk Reduction': 1 }
     return (catOrder[b.category] || 0) - (catOrder[a.category] || 0)
@@ -393,43 +417,67 @@ export default function InterviewFormPage({ params }) {
         </div>
       )}
 
-      {/* AI Summary — only show for completed interviews */}
+      {/* AI Summary — collapsible */}
       {interviewStatus === 'completed' && (form.biggest_signal || rankedPains.length > 0) && (
         <div id="summary" className="glass rounded-2xl p-5 gradient-bg-blue gradient-blue scroll-mt-24">
-          <div className="section-label text-blue-700 mb-3 flex items-center gap-1.5">
-            <span className="glyph glyph-float">◎</span> AI Summary
-          </div>
-          {form.biggest_signal && (
-            <div className="text-sm text-text font-medium mb-3">{form.biggest_signal}</div>
+          <button type="button" onClick={() => setSummaryExpanded(!summaryExpanded)}
+            className="w-full flex items-center justify-between">
+            <div className="section-label text-blue-700 flex items-center gap-1.5">
+              <span className="glyph glyph-float">◎</span> AI Summary
+              {rankedPains.length > 0 && <span className="tag tag-blue ml-2">{rankedPains.length} pain point{rankedPains.length !== 1 ? 's' : ''}</span>}
+            </div>
+            <span className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text transition-colors duration-200">
+              {summaryExpanded ? 'Collapse' : 'Expand'}
+              <span className={`text-lg transition-transform duration-200 ${summaryExpanded ? 'rotate-180' : ''}`}>&#x25BE;</span>
+            </span>
+          </button>
+
+          {/* Collapsed snippet */}
+          {!summaryExpanded && form.biggest_signal && (
+            <p className="text-sm text-text mt-2 line-clamp-2">{form.biggest_signal}</p>
           )}
-          {rankedPains.length > 0 && (
-            <div className="space-y-2">
-              <div className="section-label text-xs">Ranked Pain Points</div>
-              {rankedPains.map((p, i) => (
-                <div key={i} className="flex items-start gap-2.5 glass-subtle rounded-xl p-3">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${
-                    i === 0 ? 'bg-red-500' : i === 1 ? 'bg-orange-500' : 'bg-amber-500'
-                  }`}>{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-text">{p.description}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      {p.category && <span className="tag tag-red text-[8px]">{p.category}</span>}
-                      {p.dollar_impact && <span className="text-[10px] text-text-tertiary font-semibold">{p.dollar_impact}</span>}
-                      {p.frequency && <span className="text-[10px] text-text-tertiary">{p.frequency}</span>}
+
+          {/* Expanded content */}
+          {summaryExpanded && (
+            <div className="mt-3 space-y-3 animate-in">
+              {form.biggest_signal && (
+                <div className="text-sm text-text font-medium">{form.biggest_signal}</div>
+              )}
+              {rankedPains.length > 0 && (
+                <div className="space-y-2">
+                  <div className="section-label text-xs">Ranked Pain Points</div>
+                  {rankedPains.map((p, i) => (
+                    <div key={i} className="flex items-start gap-2.5 glass-subtle rounded-xl p-3">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${
+                        i === 0 ? 'bg-red-500' : i === 1 ? 'bg-orange-500' : 'bg-amber-500'
+                      }`}>{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-text">{p.description}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {p.category && <span className="tag tag-red text-[8px]">{p.category}</span>}
+                          {p.dollar_impact && <span className="text-[10px] text-text-tertiary font-semibold">{p.dollar_impact}</span>}
+                          {p.frequency && <span className="text-[10px] text-text-tertiary">{p.frequency}</span>}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
+
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[rgba(0,0,0,0.06)]">
             <Link href={`/interviews/${id}/flow`}
               className="text-xs px-3 py-1.5 rounded-full glass-subtle font-medium text-text hover:bg-white/60 transition-colors duration-200 border border-[rgba(0,0,0,0.08)]">
               Generate Workflow
             </Link>
-            <span className={`text-lg font-extrabold ml-auto ${scoreColor(scoreTotal)}`}>
-              {scoreTotal}<span className="text-xs text-text-tertiary font-normal">/30</span>
-            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-[10px] text-text-tertiary uppercase tracking-wide">Pain {painCount}</span>
+              <span className="w-px h-3 bg-[rgba(0,0,0,0.1)]" />
+              <span className={`text-lg font-extrabold ${opportunityScore >= 7 ? 'text-score-green' : opportunityScore >= 4 ? 'text-score-orange' : 'text-score-red'}`}>
+                {opportunityScore}<span className="text-xs text-text-tertiary font-normal">/10</span>
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -663,7 +711,7 @@ export default function InterviewFormPage({ params }) {
 
           <Section title="Workflow Mapping" id="workflow" glyph="▸">
             <Field label="Primary Workflow">
-              <textarea value={form.workflow_steps} onChange={e => update('workflow_steps', e.target.value)} rows={3} placeholder="Describe their main workflow step by step..." />
+              <textarea value={form.workflow_steps} onChange={e => update('workflow_steps', e.target.value)} rows={1} className="resize-none" placeholder="Describe their main workflow step by step..." />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Systems / Tools">
@@ -754,7 +802,7 @@ export default function InterviewFormPage({ params }) {
 
           <Section title="Key Quotes & Observations" id="quotes" glyph="◇">
             <Field label="Verbatim Quotes">
-              <textarea value={form.verbatim_quotes} onChange={e => update('verbatim_quotes', e.target.value)} rows={3} placeholder='"We spend 20 hours a week just reconciling..."' />
+              <textarea value={form.verbatim_quotes} onChange={e => update('verbatim_quotes', e.target.value)} rows={1} className="resize-none" placeholder='"We spend 20 hours a week just reconciling..."' />
             </Field>
             <Field label="Workflow Observations">
               <textarea value={form.observations} onChange={e => update('observations', e.target.value)} rows={2} placeholder="Noticed they had 3 Excel files open simultaneously..." />
@@ -799,23 +847,9 @@ export default function InterviewFormPage({ params }) {
             <InternalNotes value={form.internal_notes_assessment} onChange={v => update('internal_notes_assessment', v)} />
           </Section>
 
-          <Section title="Opportunity Scoring" id="scoring" glyph="◉">
-            <div className="space-y-3">
-              {SCORE_DIMENSIONS.map(d => (
-                <DotSelector key={d.key} label={d.label} value={form[d.key]} onChange={v => update(d.key, v)} />
-              ))}
-            </div>
-            <div className="flex items-center justify-between pt-4 border-t border-[rgba(0,0,0,0.06)]">
-              <span className="text-sm font-semibold text-text">Total Score</span>
-              <span className={`text-3xl font-extrabold ${scoreColor(scoreTotal)}`}>
-                {scoreTotal}<span className="text-sm text-text-tertiary font-normal">/30</span>
-              </span>
-            </div>
-          </Section>
-
           <div id="notes" className="glass rounded-2xl p-5 scroll-mt-24">
             <Field label="Additional Notes">
-              <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={3} placeholder="Anything else worth capturing..." />
+              <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={1} className="resize-none" placeholder="Anything else worth capturing..." />
             </Field>
           </div>
 

@@ -1,36 +1,27 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
-import { getInterviews, getNews, getTasks, getContextText } from '@/lib/api'
-import { scoreColor, timeAgo, PAIN_CATEGORIES } from '@/lib/constants'
-import Countdown from '@/components/Countdown'
+import { getInterviews, getNews, getTasks, getContextText, getOpportunityAnalysis } from '@/lib/api'
+import { timeAgo, PAIN_CATEGORIES } from '@/lib/constants'
 
-const ScatterChart = dynamic(() => import('recharts').then(m => m.ScatterChart), { ssr: false })
-const Scatter = dynamic(() => import('recharts').then(m => m.Scatter), { ssr: false })
-const XAxis = dynamic(() => import('recharts').then(m => m.XAxis), { ssr: false })
-const YAxis = dynamic(() => import('recharts').then(m => m.YAxis), { ssr: false })
-const Tooltip = dynamic(() => import('recharts').then(m => m.Tooltip), { ssr: false })
-const ResponsiveContainer = dynamic(() => import('recharts').then(m => m.ResponsiveContainer), { ssr: false })
+function getOpportunityScore(i) {
+  const pains = Array.isArray(i.pain_points) ? i.pain_points.filter(p => p.description?.trim()) : []
+  return Math.min(10, pains.length * 2 + (pains.some(p => p.dollar_impact?.trim()) ? 2 : 0) + (i.biggest_signal?.trim() ? 2 : 0) + (i.willingness_to_pay?.trim() ? 2 : 0) + Math.round((i.confidence || 0) / 2))
+}
+
+function oppColor(score) {
+  if (score >= 7) return 'text-score-green'
+  if (score >= 4) return 'text-score-orange'
+  return 'text-score-red'
+}
+import Countdown from '@/components/Countdown'
 
 const CATEGORY_COLORS = {
   'Overhead Savings': '#3b82f6',
   'Revenue Adder': '#22c55e',
   'Risk Reduction': '#ef4444',
   'Speed/Efficiency': '#f59e0b',
-}
-
-const FREQ_MAP = { Daily: 5, Weekly: 4, Monthly: 3, Quarterly: 2, Annually: 1, 'Ad-hoc': 1 }
-
-function parseDollar(str) {
-  if (!str) return 0
-  const cleaned = str.replace(/[^0-9.KkMmBb]/g, '')
-  let num = parseFloat(cleaned) || 0
-  if (/[Kk]/.test(str)) num *= 1000
-  if (/[Mm]/.test(str)) num *= 1000000
-  if (/[Bb]/.test(str)) num *= 1000000000
-  return num
 }
 
 function getGreeting() {
@@ -62,6 +53,9 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [analysis, setAnalysis] = useState('')
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisExpanded, setAnalysisExpanded] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -71,13 +65,22 @@ export default function Dashboard() {
     ]).finally(() => setLoading(false))
   }, [])
 
+  async function loadAnalysis() {
+    setAnalysisLoading(true)
+    try {
+      const res = await getOpportunityAnalysis()
+      if (res.success) setAnalysis(res.analysis)
+    } catch (e) { console.error('Analysis failed:', e) }
+    finally { setAnalysisLoading(false) }
+  }
+
   const totalPainPoints = interviews.reduce((sum, i) => {
     const pp = Array.isArray(i.pain_points) ? i.pain_points : []
     return sum + pp.length
   }, 0)
 
   const avgScore = interviews.length
-    ? Math.round(interviews.reduce((s, i) => s + (i.score_total || 0), 0) / interviews.length)
+    ? Math.round(interviews.reduce((s, i) => s + getOpportunityScore(i), 0) / interviews.length * 10) / 10
     : 0
 
   const openTasks = tasks.filter(t => t.status !== 'done' && t.status !== 'completed').length
@@ -91,38 +94,6 @@ export default function Dashboard() {
     .filter(i => i.status !== 'scheduled' && i.status !== 'in_progress')
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 4)
-
-  // Pain point scatter data
-  const scatterData = useMemo(() => {
-    const points = []
-    interviews.forEach(interview => {
-      const pp = Array.isArray(interview.pain_points) ? interview.pain_points : []
-      pp.forEach(p => {
-        const freq = FREQ_MAP[p.frequency] || 1
-        const dollar = parseDollar(p.dollar_impact)
-        if (dollar > 0 || freq > 1) {
-          points.push({
-            x: freq,
-            y: dollar,
-            category: p.category || 'Overhead Savings',
-            description: p.description || '',
-            company: interview.company || 'Unknown',
-          })
-        }
-      })
-    })
-    return points
-  }, [interviews])
-
-  const scatterByCategory = useMemo(() => {
-    const grouped = {}
-    PAIN_CATEGORIES.forEach(cat => { grouped[cat] = [] })
-    scatterData.forEach(p => {
-      if (!grouped[p.category]) grouped[p.category] = []
-      grouped[p.category].push(p)
-    })
-    return grouped
-  }, [scatterData])
 
   async function handleExport() {
     const text = await getContextText()
@@ -155,7 +126,7 @@ export default function Dashboard() {
           { label: 'Interviews', value: interviews.length, glyph: '◇', grad: 'gradient-bg-blue', border: 'gradient-blue' },
           { label: 'Pain Points', value: totalPainPoints, glyph: '◆', grad: 'gradient-bg-red', border: 'gradient-red' },
           { label: 'Open Tasks', value: openTasks, glyph: '▸', grad: 'gradient-bg-amber', border: 'gradient-amber' },
-          { label: 'Avg Score', value: `${avgScore}/30`, colorClass: scoreColor(avgScore), glyph: '⬡', grad: 'gradient-bg-green', border: 'gradient-green' },
+          { label: 'Avg Opp', value: `${avgScore}/10`, colorClass: oppColor(avgScore), glyph: '⬡', grad: 'gradient-bg-green', border: 'gradient-green' },
         ].map((s, i) => (
           <div key={s.label} className={`glass rounded-2xl p-4 card-lift ${s.grad} ${s.border} animate-in animate-in-${i + 1}`}>
             <div className="flex items-center gap-1.5">
@@ -215,7 +186,10 @@ export default function Dashboard() {
               <h3 className="text-[11px] font-bold text-text-tertiary uppercase tracking-wider">Recent</h3>
               {recentCompleted.length === 0 ? (
                 <p className="text-text-tertiary text-xs py-4">No completed interviews yet</p>
-              ) : recentCompleted.map(i => (
+              ) : recentCompleted.map(i => {
+                const score = getOpportunityScore(i)
+                const painCount = Array.isArray(i.pain_points) ? i.pain_points.filter(p => p.description?.trim()).length : 0
+                return (
                 <Link key={i.id} href={`/interviews/${i.id}`}
                   className="block glass rounded-2xl p-3.5 card-lift">
                   <div className="flex items-center gap-3">
@@ -227,68 +201,64 @@ export default function Dashboard() {
                         <span className="font-semibold text-text text-sm">{i.company || 'Unnamed'}</span>
                         <span className="text-text-secondary text-xs">{i.interviewee_name}</span>
                       </div>
-                      <span className="text-text-tertiary text-xs">{timeAgo(i.date)}</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-text-tertiary text-xs">{timeAgo(i.date)}</span>
+                        {painCount > 0 && <span className="tag tag-red text-[8px]">{painCount} pain{painCount !== 1 ? 's' : ''}</span>}
+                        {i.biggest_signal && <span className="tag tag-green text-[8px]">signal</span>}
+                      </div>
                     </div>
-                    <span className={`text-lg font-extrabold shrink-0 ${scoreColor(i.score_total || 0)}`}>
-                      {i.score_total || 0}<span className="text-text-tertiary text-xs font-normal">/30</span>
+                    <span className={`text-lg font-extrabold shrink-0 ${oppColor(score)}`}>
+                      {score}<span className="text-text-tertiary text-xs font-normal">/10</span>
                     </span>
                   </div>
                 </Link>
-              ))}
+                )
+              })}
             </div>
           </div>
         </section>
       )}
 
-      {/* 4. Pain Point Landscape */}
+      {/* 4. Opportunity Analysis */}
       <section>
-        <h2 className="section-label mb-3">Pain Point Landscape</h2>
-        {scatterData.length > 0 ? (
-          <>
-            <div className="flex flex-wrap gap-3 mb-3">
-              {PAIN_CATEGORIES.map(cat => (
-                <div key={cat} className="flex items-center gap-1.5 text-xs text-text-secondary">
-                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] }} />
-                  {cat}
-                </div>
-              ))}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="section-label flex items-center gap-1.5">
+            <span className="glyph glyph-float">⬡</span> Opportunity Analysis
+          </h2>
+          <button onClick={loadAnalysis} disabled={analysisLoading}
+            className="text-xs px-3 py-1.5 rounded-full glass-subtle font-medium text-text-secondary hover:text-text transition-colors duration-200 border border-[rgba(0,0,0,0.08)] disabled:opacity-40">
+            {analysisLoading ? 'Analyzing...' : analysis ? 'Refresh' : 'Generate'}
+          </button>
+        </div>
+        <div className="glass rounded-2xl gradient-bg-purple gradient-purple">
+          {analysisLoading ? (
+            <div className="p-8 text-center">
+              <div className="glyph glyph-pulse text-2xl text-text-tertiary mb-2">⬡</div>
+              <p className="text-sm text-text-tertiary">Analyzing {interviews.length} interviews and research data...</p>
             </div>
-            <div className="glass rounded-2xl p-4">
-              <ResponsiveContainer width="100%" height={300}>
-                <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 20 }}>
-                  <XAxis type="number" dataKey="x" name="Frequency" domain={[0, 6]}
-                    tickFormatter={v => ['', 'Annually', 'Quarterly', 'Monthly', 'Weekly', 'Daily'][v] || ''}
-                    tick={{ fontSize: 11 }} />
-                  <YAxis type="number" dataKey="y" name="Dollar Impact"
-                    tickFormatter={v => v >= 1000000 ? `$${(v / 1000000).toFixed(0)}M` : v >= 1000 ? `$${(v / 1000).toFixed(0)}K` : `$${v}`}
-                    tick={{ fontSize: 11 }} />
-                  <Tooltip content={({ payload }) => {
-                    if (!payload?.length) return null
-                    const d = payload[0].payload
-                    return (
-                      <div className="bg-card border border-border rounded-lg p-3 shadow-lg text-xs max-w-[220px]">
-                        <p className="font-semibold text-text">{d.company}</p>
-                        <p className="text-text-secondary mt-1 line-clamp-2">{d.description}</p>
-                        <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium text-white" style={{ backgroundColor: CATEGORY_COLORS[d.category] }}>
-                          {d.category}
-                        </span>
-                      </div>
-                    )
-                  }} />
-                  {PAIN_CATEGORIES.map(cat => (
-                    scatterByCategory[cat]?.length > 0 && (
-                      <Scatter key={cat} name={cat} data={scatterByCategory[cat]} fill={CATEGORY_COLORS[cat]} opacity={0.8} />
-                    )
-                  ))}
-                </ScatterChart>
-              </ResponsiveContainer>
+          ) : analysis ? (
+            <div className="p-5">
+              <button type="button" onClick={() => setAnalysisExpanded(!analysisExpanded)}
+                className="w-full flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-text">Claude Analysis</span>
+                <span className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text transition-colors duration-200">
+                  {analysisExpanded ? 'Collapse' : 'Expand'}
+                  <span className={`text-lg transition-transform duration-200 ${analysisExpanded ? 'rotate-180' : ''}`}>&#x25BE;</span>
+                </span>
+              </button>
+              {!analysisExpanded ? (
+                <p className="text-sm text-text-secondary leading-relaxed line-clamp-3 whitespace-pre-wrap">{analysis.split('\n')[0]}</p>
+              ) : (
+                <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap animate-in">{analysis}</div>
+              )}
             </div>
-          </>
-        ) : (
-          <div className="glass rounded-2xl p-8 text-center">
-            <p className="text-text-tertiary text-sm">No pain point data yet. Complete interviews to populate the landscape.</p>
-          </div>
-        )}
+          ) : (
+            <div className="p-8 text-center">
+              <div className="glyph text-2xl text-text-tertiary mb-2">⬡</div>
+              <p className="text-sm text-text-tertiary">Generate an AI-powered opportunity analysis based on your interviews and research.</p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* 5. News + AI Headlines */}

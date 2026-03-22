@@ -16,6 +16,7 @@ import { CURRENT_VERSION } from "@/lib/versions"
 const PRIMARY = [
   { href: '/feed', label: 'Feed' },
   { href: '/interviews', label: 'Interviews' },
+  { href: '/the-index', label: 'Index' },
   { href: '/news', label: 'News' },
   { href: '/search', label: 'Search' },
 ]

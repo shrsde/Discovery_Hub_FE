@@ -3,12 +3,30 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { getInterviews, saveInterview, createMeeting, deleteInterviews } from '@/lib/api'
-import { scoreColor, timeAgo } from '@/lib/constants'
+import { getInterviews, saveInterview, createMeeting, deleteInterviews, createIndexEntry } from '@/lib/api'
+import { timeAgo } from '@/lib/constants'
 import { useAuth } from '@/lib/auth-context'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-
 import Countdown from '@/components/Countdown'
+
+function getOpportunityScore(interview) {
+  const pains = Array.isArray(interview.pain_points) ? interview.pain_points.filter(p => p.description?.trim()) : []
+  const painCount = pains.length
+  const hasDollarImpact = pains.some(p => p.dollar_impact?.trim())
+  const hasSignal = !!interview.biggest_signal?.trim()
+  const hasWTP = !!interview.willingness_to_pay?.trim()
+  const confidence = interview.confidence || 0
+  return Math.min(10, painCount * 2 + (hasDollarImpact ? 2 : 0) + (hasSignal ? 2 : 0) + (hasWTP ? 2 : 0) + Math.round(confidence / 2))
+}
+
+function OpportunityBadge({ score }) {
+  const color = score >= 7 ? 'text-green-700 bg-green-50/60' : score >= 4 ? 'text-amber-700 bg-amber-50/60' : 'text-red-600 bg-red-50/60'
+  return (
+    <span className={`text-lg font-extrabold px-2 py-0.5 rounded-lg ${color}`}>
+      {score}<span className="text-xs font-normal opacity-60">/10</span>
+    </span>
+  )
+}
 
 export default function InterviewsListPage() {
   const { displayName } = useAuth()
@@ -19,6 +37,7 @@ export default function InterviewsListPage() {
   const [scheduling, setScheduling] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
 
   function toggleSelect(id) {
     const next = new Set(selected)
@@ -34,15 +53,10 @@ export default function InterviewsListPage() {
     setSelectMode(false)
     await load()
   }
+
   const [schedForm, setSchedForm] = useState({
-    interviewee_name: '',
-    company: '',
-    role: '',
-    department: '',
-    date: '',
-    time: '',
-    interviewer: 'Gibb',
-    notes: '',
+    interviewee_name: '', company: '', role: '', department: '',
+    date: '', time: '', interviewer: 'Gibb', notes: '',
   })
 
   async function load() {
@@ -53,20 +67,30 @@ export default function InterviewsListPage() {
   async function handleStartInterview(id) {
     await saveInterview({ id, status: 'in_progress' })
     router.push(`/interviews/${id}`)
-    await load()
   }
 
   useEffect(() => { load().finally(() => setLoading(false)) }, [])
 
-  const scheduled = interviews
+  // Filter
+  let filtered = interviews
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase()
+    filtered = filtered.filter(i =>
+      i.interviewee_name?.toLowerCase().includes(q) ||
+      i.company?.toLowerCase().includes(q) ||
+      i.role?.toLowerCase().includes(q) ||
+      i.biggest_signal?.toLowerCase().includes(q)
+    )
+  }
+
+  const scheduled = filtered
     .filter(i => i.status === 'scheduled' || i.status === 'in_progress')
     .sort((a, b) => new Date(a.scheduled_at || a.date) - new Date(b.scheduled_at || b.date))
 
-  const completed = interviews
+  const completed = filtered
     .filter(i => i.status !== 'scheduled' && i.status !== 'in_progress')
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => getOpportunityScore(b) - getOpportunityScore(a))
 
-  // Group scheduled by date for timeline
   const scheduledByDate = {}
   scheduled.forEach(i => {
     const day = new Date(i.scheduled_at || i.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -74,20 +98,11 @@ export default function InterviewsListPage() {
     scheduledByDate[day].push(i)
   })
 
-  // Group completed by date
-  const completedByDate = {}
-  completed.forEach(i => {
-    const day = new Date(i.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    if (!completedByDate[day]) completedByDate[day] = []
-    completedByDate[day].push(i)
-  })
-
   async function handleSchedule(e) {
     e.preventDefault()
     if (!schedForm.interviewee_name.trim()) return
     setScheduling(true)
     try {
-      // Generate Meet link
       let meetLink = null
       try {
         const meetRes = await createMeeting({
@@ -124,46 +139,51 @@ export default function InterviewsListPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold text-text">Interviews</h1>
-        <div className="flex items-center gap-2">
-          {selectMode ? (
-            <>
-              <span className="text-xs text-text-secondary">{selected.size} selected</span>
-              {selected.size > 0 && (
-                <button onClick={handleDeleteSelected}
-                  className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition">
-                  Delete
+      {/* Sticky header + search */}
+      <div className="sticky top-14 z-30 bg-[#fafafa] pb-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-text">Interviews</h1>
+          <div className="flex items-center gap-2">
+            {selectMode ? (
+              <>
+                <span className="text-xs text-text-secondary">{selected.size} selected</span>
+                {selected.size > 0 && (
+                  <button onClick={handleDeleteSelected}
+                    className="text-xs px-3 py-1.5 rounded-full glass-subtle border border-red-200/40 text-red-600 hover:bg-red-50/50 transition-colors duration-200">
+                    Delete
+                  </button>
+                )}
+                <button onClick={() => { setSelectMode(false); setSelected(new Set()) }}
+                  className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200">
+                  Cancel
                 </button>
-              )}
-              <button onClick={() => { setSelectMode(false); setSelected(new Set()) }}
-                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => setSelectMode(true)}
-                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
-                Select
-              </button>
-              <button onClick={() => setShowSchedule(true)}
-                className="text-sm px-4 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] font-semibold shadow-sm">
-                Schedule
-              </button>
-              <Link href="/interviews/new"
-                className="text-sm px-4 py-2 bg-accent text-white rounded-full hover:bg-accent-light transition-all active:scale-[0.97] font-semibold shadow-sm">
-                + New
-              </Link>
-            </>
-          )}
+              </>
+            ) : (
+              <>
+                <button onClick={() => setSelectMode(true)}
+                  className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200">
+                  Select
+                </button>
+                <button onClick={() => setShowSchedule(true)}
+                  className="text-xs px-4 py-2 rounded-full bg-accent text-white hover:bg-accent-light transition-all duration-200 active:scale-[0.97] font-semibold shadow-sm">
+                  <span className="glyph mr-1">◎</span> Schedule
+                </button>
+                <Link href="/interviews/new"
+                  className="text-xs px-4 py-2 rounded-full bg-accent text-white hover:bg-accent-light transition-all duration-200 active:scale-[0.97] font-semibold shadow-sm">
+                  + New
+                </Link>
+              </>
+            )}
+          </div>
         </div>
+
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search interviews..." className="!rounded-full !text-xs" />
       </div>
 
       {/* Schedule Dialog */}
       <Dialog open={showSchedule} onOpenChange={setShowSchedule}>
-        <DialogContent className="max-w-md p-5 space-y-4">
+        <DialogContent className="glass-strong rounded-2xl border-0 shadow-xl max-w-md p-5 space-y-4">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold text-text">Schedule Interview</DialogTitle>
           </DialogHeader>
@@ -174,7 +194,7 @@ export default function InterviewsListPage() {
                   className={`px-4 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.97] ${
                     schedForm.interviewer === a
                       ? (a === 'Wes' ? 'bg-wes text-white' : 'bg-gibb text-white')
-                      : 'bg-card-hover border border-border text-text-secondary'
+                      : 'glass-subtle text-text-secondary'
                   }`}>{a}</button>
               ))}
             </div>
@@ -219,30 +239,32 @@ export default function InterviewsListPage() {
             <div>
               <label className="section-label block mb-1">Notes</label>
               <textarea value={schedForm.notes} onChange={e => setSchedForm(f => ({ ...f, notes: e.target.value }))}
-                rows={2} placeholder="Topics to cover, connection source, prep notes..." className="resize-none" />
+                rows={2} placeholder="Topics to cover, prep notes..." className="resize-none" />
             </div>
 
-            <p className="text-[10px] text-text-tertiary">A Google Meet link will be auto-generated and the recording bot will join automatically.</p>
+            <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Fireflies bot joins automatically.</p>
 
             <button type="submit" disabled={scheduling || !schedForm.interviewee_name.trim()}
-              className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-full hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-40">
+              className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40">
               {scheduling ? 'Scheduling...' : 'Schedule Interview'}
             </button>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Main layout with timeline sidebar */}
+      {/* Main layout */}
       <div className="flex gap-6">
-        {/* Timeline sidebar — desktop */}
+        {/* Timeline sidebar */}
         <div className="hidden md:block w-32 shrink-0">
-          <div className="sticky top-16 space-y-1 max-h-[70vh] overflow-y-auto">
+          <div className="sticky top-40 space-y-1 max-h-[70vh] overflow-y-auto">
             {scheduled.length > 0 && (
               <>
-                <div className="text-[9px] font-bold text-indigo-500 uppercase tracking-wider px-2 mt-2 mb-1">Upcoming</div>
+                <div className="section-label text-[9px] px-2 mt-2 mb-1 flex items-center gap-1">
+                  <span className="glyph text-xs glyph-pulse">◎</span> Upcoming
+                </div>
                 {Object.entries(scheduledByDate).map(([day, items]) => (
                   <button key={day} onClick={() => document.getElementById(`sched-${day}`)?.scrollIntoView({ behavior: 'smooth' })}
-                    className="w-full text-left px-2 py-1.5 rounded-lg text-text-secondary hover:bg-indigo-50 transition">
+                    className="w-full text-left px-2 py-1.5 rounded-lg text-text-secondary hover:bg-white/40 transition-colors duration-200">
                     <div className="text-[11px] font-semibold">{day}</div>
                     <div className="text-[10px] text-text-tertiary line-clamp-1">{items.map(i => i.interviewee_name).join(', ')}</div>
                   </button>
@@ -251,14 +273,21 @@ export default function InterviewsListPage() {
             )}
             {completed.length > 0 && (
               <>
-                <div className="text-[9px] font-bold text-text-tertiary uppercase tracking-wider px-2 mt-3 mb-1">Completed</div>
-                {Object.entries(completedByDate).map(([day, items]) => (
-                  <button key={day} onClick={() => document.getElementById(`comp-${day}`)?.scrollIntoView({ behavior: 'smooth' })}
-                    className="w-full text-left px-2 py-1.5 rounded-lg text-text-secondary hover:bg-card-hover transition">
-                    <div className="text-[11px] font-semibold">{day}</div>
-                    <div className="text-[10px] text-text-tertiary line-clamp-1">{items.map(i => i.company || i.interviewee_name).join(', ')}</div>
-                  </button>
-                ))}
+                <div className="section-label text-[9px] px-2 mt-3 mb-1 flex items-center gap-1">
+                  <span className="glyph text-xs">◇</span> Ranked
+                </div>
+                {completed.slice(0, 8).map(i => {
+                  const score = getOpportunityScore(i)
+                  return (
+                    <button key={i.id} onClick={() => document.getElementById(`int-${i.id}`)?.scrollIntoView({ behavior: 'smooth' })}
+                      className="w-full text-left px-2 py-1.5 rounded-lg text-text-secondary hover:bg-white/40 transition-colors duration-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold truncate">{i.company || i.interviewee_name}</span>
+                        <span className={`text-[10px] font-bold ${score >= 7 ? 'text-green-600' : score >= 4 ? 'text-amber-600' : 'text-red-500'}`}>{score}</span>
+                      </div>
+                    </button>
+                  )
+                })}
               </>
             )}
           </div>
@@ -269,17 +298,19 @@ export default function InterviewsListPage() {
           {/* Scheduled interviews */}
           {scheduled.length > 0 && (
             <section>
-              <h2 className="section-label text-indigo-600 mb-3">Upcoming Interviews</h2>
+              <h2 className="section-label mb-3 flex items-center gap-1.5">
+                <span className="glyph glyph-pulse">◎</span> Upcoming Interviews
+              </h2>
               {Object.entries(scheduledByDate).map(([day, items]) => (
                 <div key={day} id={`sched-${day}`} className="mb-4">
                   <div className="section-label mb-2">{day}</div>
                   <div className="space-y-2">
                     {items.map(i => (
-                      <div key={i.id} className={`glass rounded-2xl p-4 card-lift ${selected.has(i.id) ? 'border-accent ring-2 ring-accent/20' : 'border-indigo-200'}`}>
+                      <div key={i.id} className={`glass rounded-2xl p-4 card-lift gradient-blue ${selected.has(i.id) ? 'ring-2 ring-accent/20' : ''}`}>
                         <div className="flex items-center gap-3">
                           {selectMode && (
                             <button onClick={() => toggleSelect(i.id)}
-                              className={`w-5 h-5 rounded border-2 shrink-0 transition-all ${selected.has(i.id) ? 'bg-accent border-accent' : 'border-border hover:border-accent'}`}>
+                              className={`w-5 h-5 rounded border-2 shrink-0 transition-all ${selected.has(i.id) ? 'bg-accent border-accent' : 'border-[rgba(0,0,0,0.15)] hover:border-accent'}`}>
                               {selected.has(i.id) && <svg className="w-full h-full text-white" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                             </button>
                           )}
@@ -291,40 +322,40 @@ export default function InterviewsListPage() {
                               <span className="font-semibold text-text">{i.interviewee_name || 'TBD'}</span>
                               {i.company && <span className="text-text-secondary text-sm">{i.company}</span>}
                               {i.status === 'in_progress' ? (
-                                <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full animate-pulse">In Progress</span>
+                                <span className="tag tag-green flex items-center gap-1">
+                                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
+                                  Live
+                                </span>
                               ) : (
                                 i.scheduled_at && <Countdown scheduledAt={i.scheduled_at} />
                               )}
                             </div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-text-tertiary">
                               {i.role && <span>{i.role}</span>}
-                              {i.department && <span>{i.department}</span>}
                               {i.scheduled_at && (
-                                <span>{new Date(i.scheduled_at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                                <span>{new Date(i.scheduled_at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</span>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {i.meet_link && (
                               <a href={i.meet_link} target="_blank" rel="noopener"
-                                className="text-xs px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition font-semibold shadow-sm">
-                                Join Meet
+                                className="text-xs px-3 py-1.5 rounded-full bg-accent text-white hover:bg-accent-light transition-all duration-200 font-semibold shadow-sm">
+                                Join
                               </a>
                             )}
                             {(() => {
                               const scheduledTime = new Date(i.scheduled_at || i.date).getTime()
-                              const now = Date.now()
-                              const fifteenMin = 15 * 60 * 1000
-                              const canStart = now >= scheduledTime - fifteenMin
+                              const canStart = Date.now() >= scheduledTime - 15 * 60 * 1000
                               return canStart ? (
                                 <button onClick={() => handleStartInterview(i.id)}
-                                  className="text-xs px-3 py-1.5 rounded-full bg-green-600 text-white hover:bg-green-700 transition font-semibold shadow-sm">
-                                  Start Interview
+                                  className="text-xs px-3 py-1.5 rounded-full glass-subtle text-green-700 font-semibold hover:bg-green-50/50 transition-colors duration-200 border border-green-200/40">
+                                  Start
                                 </button>
                               ) : null
                             })()}
                             <Link href={`/interviews/${i.id}`}
-                              className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:bg-card-hover transition">
+                              className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200">
                               Edit
                             </Link>
                           </div>
@@ -338,26 +369,30 @@ export default function InterviewsListPage() {
             </section>
           )}
 
-          {/* Completed interviews */}
+          {/* Completed — ranked by opportunity */}
           <section>
-            <h2 className="section-label mb-3">
-              {scheduled.length > 0 ? 'Completed Interviews' : 'Interviews'}
+            <h2 className="section-label mb-3 flex items-center gap-1.5">
+              <span className="glyph">◇</span> {scheduled.length > 0 ? 'Ranked by Opportunity' : 'Interviews'}
             </h2>
-            {Object.entries(completedByDate).map(([day, items]) => (
-              <div key={day} id={`comp-${day}`} className="mb-4">
-                <div className="section-label mb-2">{day}</div>
-                <div className="space-y-2">
-                  {items.map(i => {
-                    const painCount = Array.isArray(i.pain_points) ? i.pain_points.length : 0
-                    return (
-                      <div key={i.id} className={`glass rounded-2xl p-4 card-lift flex items-center gap-3 ${selected.has(i.id) ? 'border-accent ring-2 ring-accent/20' : ''}`}>
-                        {selectMode && (
-                          <button onClick={() => toggleSelect(i.id)}
-                            className={`w-5 h-5 rounded border-2 shrink-0 transition-all ${selected.has(i.id) ? 'bg-accent border-accent' : 'border-border hover:border-accent'}`}>
-                            {selected.has(i.id) && <svg className="w-full h-full text-white" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
-                          </button>
-                        )}
-                        <Link href={`/interviews/${i.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="space-y-2">
+              {completed.map((i, idx) => {
+                const pains = Array.isArray(i.pain_points) ? i.pain_points.filter(p => p.description?.trim()) : []
+                const painCount = pains.length
+                const score = getOpportunityScore(i)
+                const topPain = pains[0]?.description || ''
+
+                return (
+                  <div key={i.id} id={`int-${i.id}`}
+                    className={`glass rounded-2xl p-4 card-lift ${selected.has(i.id) ? 'ring-2 ring-accent/20' : ''} ${idx === 0 && score >= 7 ? 'gradient-green' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      {selectMode && (
+                        <button onClick={() => toggleSelect(i.id)}
+                          className={`w-5 h-5 rounded border-2 shrink-0 mt-1 transition-all ${selected.has(i.id) ? 'bg-accent border-accent' : 'border-[rgba(0,0,0,0.15)] hover:border-accent'}`}>
+                          {selected.has(i.id) && <svg className="w-full h-full text-white" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                        </button>
+                      )}
+                      <Link href={`/interviews/${i.id}`} className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
                           <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ${i.interviewer === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
                             {i.interviewer?.[0]}
                           </span>
@@ -365,26 +400,70 @@ export default function InterviewsListPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-text">{i.company || 'Unnamed'}</span>
                               <span className="text-text-secondary text-sm">{i.interviewee_name}</span>
+                              {i.org_type && <span className="tag tag-primary">{i.org_type}</span>}
                             </div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-text-tertiary">
-                              <span>{i.date}</span>
-                              <span>{i.role}</span>
-                              <span>{painCount} pain point{painCount !== 1 ? 's' : ''}</span>
-                              {i.confidence && <span>Confidence: {i.confidence}/5</span>}
+                              <span>{timeAgo(i.date)}</span>
+                              {i.role && <span>{i.role}</span>}
                             </div>
                           </div>
-                          <span className={`text-lg font-extrabold shrink-0 ${scoreColor(i.score_total || 0)}`}>
-                            {i.score_total || 0}<span className="text-text-tertiary text-xs font-normal">/30</span>
-                          </span>
+                          <OpportunityBadge score={score} />
+                        </div>
+
+                        {/* Pain vs Opportunity summary */}
+                        <div className="mt-3 pl-12 flex items-start gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="tag tag-red">{painCount} pain{painCount !== 1 ? 's' : ''}</span>
+                              {i.biggest_signal && <span className="tag tag-green">signal</span>}
+                              {i.willingness_to_pay && <span className="tag tag-amber">wtp</span>}
+                              {i.confidence && <span className="tag tag-blue">conf {i.confidence}/5</span>}
+                            </div>
+                            {topPain && (
+                              <p className="text-xs text-text-secondary line-clamp-1 mt-1">{topPain}</p>
+                            )}
+                            {i.biggest_signal && (
+                              <p className="text-[11px] text-green-700 mt-1 line-clamp-1">{i.biggest_signal}</p>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="flex items-center gap-1.5 shrink-0 mt-1">
+                        <Link href={`/interviews/${i.id}/flow`}
+                          className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200">
+                          Workflow
                         </Link>
+                        <button onClick={async (e) => {
+                          e.preventDefault()
+                          const btn = e.currentTarget
+                          btn.textContent = 'Indexing...'
+                          try {
+                            await createIndexEntry({
+                              title: `${i.interviewee_name || 'Unknown'} — ${i.company || 'Unknown'}`,
+                              body: `<strong>${i.interviewee_name}</strong> at ${i.company}${i.role ? ` (${i.role})` : ''}\n\n${i.biggest_signal || ''}\n\n${(Array.isArray(i.pain_points) ? i.pain_points.filter(p => p.description).map(p => '- ' + p.description).join('\n') : '')}`,
+                              source_type: 'interview',
+                              source_id: i.id,
+                              tags: ['interview', i.company, i.org_type].filter(Boolean),
+                              author: i.interviewer || 'Wes',
+                            })
+                            btn.textContent = 'Indexed'
+                            btn.classList.add('text-green-600')
+                            setTimeout(() => { btn.textContent = '⬡ Index'; btn.classList.remove('text-green-600') }, 3000)
+                          } catch (err) { btn.textContent = '⬡ Index'; alert('Failed: ' + err.message) }
+                        }}
+                          className="text-xs px-3 py-1.5 rounded-full glass-subtle text-accent font-medium hover:text-accent-light transition-colors duration-200">
+                          ⬡ Index
+                        </button>
                       </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
             {completed.length === 0 && scheduled.length === 0 && (
-              <p className="text-text-tertiary text-center py-10">No interviews yet. Schedule one or capture on the fly.</p>
+              <div className="glass rounded-2xl p-8 text-center">
+                <p className="text-text-tertiary text-sm">No interviews yet. Schedule one or capture on the fly.</p>
+              </div>
             )}
           </section>
         </div>
