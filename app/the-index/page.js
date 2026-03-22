@@ -155,6 +155,24 @@ export default function TheIndexPage() {
           placeholder="Search the index..." className="!rounded-full !text-xs" />
       </div>
 
+      {/* Description card */}
+      <div className="glass rounded-2xl p-5 mb-4 gradient-bg-purple gradient-purple">
+        <div className="flex items-start gap-3">
+          <span className="glyph glyph-float text-xl mt-0.5">⬡</span>
+          <div>
+            <h2 className="text-sm font-semibold text-text">Research Knowledge Base</h2>
+            <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+              The Index is your collective intelligence layer. Index feed posts, interviews, and insights into organized folders and working threads.
+              This page feeds into opportunity assessments, pain point mapping, and platform audits — building a living reference from your discovery research.
+            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="tag tag-purple">{entries.length} entries</span>
+              <span className="tag tag-blue">{folders.length} folders</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex gap-6">
         {/* Folder sidebar */}
         <div className="hidden md:block w-44 shrink-0">
@@ -214,7 +232,7 @@ export default function TheIndexPage() {
           {pinnedEntries.length > 0 && (
             <div>
               <div className="section-label mb-2 flex items-center gap-1.5">
-                <span className="glyph">&#x25C6;</span> Pinned
+                <span className="glyph">{'\u25C6'}</span> Pinned
               </div>
               <div className="space-y-2">
                 {pinnedEntries.map(entry => (
@@ -423,15 +441,15 @@ function IndexCard({ entry, folders, expanded, onToggle, onPin, onDelete, onMove
   return (
     <div className={`glass rounded-2xl p-4 card-lift ${entry.pinned ? 'gradient-amber' : ''}`}>
       <div className="flex items-start gap-3">
-        <button onClick={onToggle} className="glyph text-text-tertiary text-sm mt-1 hover:text-text transition-colors shrink-0">
-          {expanded ? '&#x25BC;' : '&#x25B6;'}
+        <button onClick={onToggle} className="text-text-tertiary text-xs mt-1.5 hover:text-text transition-colors shrink-0">
+          {expanded ? '\u25BE' : '\u25B8'}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-text text-sm">{entry.title}</span>
             <span className="tag tag-primary">{sourceLabel}</span>
             {folder && <span className={`tag tag-${folder.color || 'blue'}`}>{folder.icon} {folder.name}</span>}
-            {entry.pinned && <span className="text-xs text-amber-600 flex items-center gap-1"><span className="glyph">&#x25C6;</span></span>}
+            {entry.pinned && <span className="text-xs text-amber-600 flex items-center gap-1"><span className="glyph">{'\u25C6'}</span></span>}
             <span className="text-text-tertiary text-xs ml-auto">{timeAgo(entry.updated_at || entry.created_at)}</span>
           </div>
 
@@ -442,28 +460,21 @@ function IndexCard({ entry, folders, expanded, onToggle, onPin, onDelete, onMove
             </div>
           )}
 
-          {/* Preview when collapsed */}
-          {!expanded && entry.body && (
-            <p className="text-xs text-text-secondary mt-1 line-clamp-2">
-              {entry.body.replace(/<[^>]*>/g, '').slice(0, 150)}
-            </p>
-          )}
-
-          {/* Expanded body */}
-          {expanded && (
-            <div className="mt-3 animate-in">
+          {/* Content — always visible, expandable */}
+          {entry.body && (
+            <div className={`mt-2 ${!expanded ? 'line-clamp-4' : ''}`}>
               {entry.body?.startsWith('<') ? (
-                <div className="text-sm"><RichContent html={entry.body} /></div>
+                <div className="text-sm text-text-secondary leading-relaxed"><RichContent html={entry.body} /></div>
               ) : (
-                <p className="text-sm text-text whitespace-pre-wrap">{entry.body}</p>
-              )}
-
-              {sourceLink && (
-                <Link href={sourceLink} className="inline-flex items-center gap-1 text-xs text-accent hover:underline mt-3">
-                  View source →
-                </Link>
+                <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{entry.body}</p>
               )}
             </div>
+          )}
+
+          {expanded && sourceLink && (
+            <Link href={sourceLink} className="inline-flex items-center gap-1 text-xs text-accent hover:underline mt-2">
+              View source →
+            </Link>
           )}
 
           {/* Actions */}
