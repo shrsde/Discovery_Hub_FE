@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications, createIndexEntry } from '@/lib/api'
+import { api, getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications, createIndexEntry } from '@/lib/api'
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
 import RichEditor, { RichContent } from '@/components/RichEditor'
 import { useAuth } from '@/lib/auth-context'
@@ -940,8 +940,8 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Sticky composer + search/filters */}
-      <div className="sticky top-14 z-30 bg-[#fafafa] pb-4 space-y-3">
+      {/* Composer + search/filters */}
+      <div className="pb-4 space-y-3">
         {/* Search + filters */}
         <div className="flex items-center gap-2 flex-wrap">
           <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
@@ -973,7 +973,7 @@ export default function FeedPage() {
 
         {/* Composer */}
         {view !== 'archived' && (
-          <form onSubmit={handlePost} className="glass rounded-2xl p-4 space-y-3">
+          <form onSubmit={handlePost} className="glass rounded-2xl p-4 space-y-3 sticky top-14 z-30">
             <RichEditor content={text} onChange={setText}
               placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
 
@@ -1186,7 +1186,7 @@ export default function FeedPage() {
               <span className="glyph text-green-600 text-sm mt-0.5 glyph-pulse">&#x25C9;</span>
               <div>
                 <p className="text-[11px] text-text-secondary font-medium">Auto-configured</p>
-                <p className="text-[10px] text-text-tertiary mt-0.5">Google Meet link generated. Fireflies bot joins and records automatically.</p>
+                <p className="text-[10px] text-text-tertiary mt-0.5">Google Meet link generated. Recording bot joins and transcribes automatically.</p>
               </div>
             </div>
 

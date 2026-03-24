@@ -100,7 +100,7 @@ function QuickMeetingModal({ open, onOpenChange, displayName }) {
         <form onSubmit={handleCreate} className="space-y-3">
           <input value={title} onChange={e => setTitle(e.target.value)}
             placeholder="Meeting title" autoFocus />
-          <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Fireflies recording bot joins automatically.</p>
+          <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Recording bot joins and transcribes automatically.</p>
           <button type="submit" disabled={creating || !title.trim()}
             className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all duration-200 active:scale-[0.97] disabled:opacity-40">
             {creating ? 'Creating...' : 'Create Meeting'}

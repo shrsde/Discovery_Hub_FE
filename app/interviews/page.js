@@ -242,7 +242,7 @@ export default function InterviewsListPage() {
                 rows={2} placeholder="Topics to cover, prep notes..." className="resize-none" />
             </div>
 
-            <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Fireflies bot joins automatically.</p>
+            <p className="text-[10px] text-text-tertiary">Google Meet link auto-generated. Recording bot joins and transcribes automatically.</p>
 
             <button type="submit" disabled={scheduling || !schedForm.interviewee_name.trim()}
               className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40">
