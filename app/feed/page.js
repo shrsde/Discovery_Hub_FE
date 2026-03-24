@@ -635,12 +635,12 @@ export default function FeedPage() {
     const isMeeting = isMeetingCompleted || isMeetingScheduled || item.type === 'meeting'
 
     return (
-      <div id={`post-${item.id}`} className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all ${
-        isSelected ? 'border-accent ring-2 ring-accent/20'
-        : item.pinned ? 'border-amber-300 bg-amber-50/50'
-        : isMeetingCompleted ? 'border-l-4 border-l-indigo-400 bg-indigo-50/30'
-        : isMeetingScheduled || item.type === 'meeting' ? 'border-l-4 border-l-blue-400 bg-blue-50/30'
-        : ''
+      <div id={`post-${item.id}`} className={`rounded-2xl p-4 flex items-start gap-3 transition-all ${
+        isSelected ? 'glass border-accent ring-2 ring-accent/20'
+        : item.pinned ? 'glass border-amber-300 bg-amber-50/50'
+        : isMeetingCompleted ? 'glass-meeting'
+        : isMeetingScheduled || item.type === 'meeting' ? 'glass gradient-blue gradient-bg-blue'
+        : 'glass'
       }`}>
         {selectMode && (
           <button onClick={() => toggleSelect(item.id)}
@@ -715,9 +715,8 @@ export default function FeedPage() {
                   if (!meetingId) return
                   setLoadingTranscript(true)
                   try {
-                    const res = await api(`/api/meetings`)
-                    const meeting = res.data?.find(m => m.id === meetingId)
-                    setTranscriptText(meeting?.transcript || 'No transcript available.')
+                    const res = await api(`/api/meetings?id=${meetingId}`)
+                    setTranscriptText(res.data?.transcript || 'No transcript available.')
                     setShowTranscript(true)
                   } catch (e) { setTranscriptText('Failed to load transcript.'); setShowTranscript(true) }
                   finally { setLoadingTranscript(false) }

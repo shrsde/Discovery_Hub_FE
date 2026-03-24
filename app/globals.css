@@ -162,6 +162,16 @@ input[type="range"] {
 .gradient-bg-purple { background: linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(255,255,255,0.55) 100%); }
 .gradient-bg-peach { background: linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(255,255,255,0.55) 100%); }
 
+/* Meeting recap card — liquid glass with indigo tint */
+.glass-meeting {
+  background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.04) 50%, rgba(255,255,255,0.60) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(99,102,241,0.15);
+  border-left: 3px solid #6366f1;
+  box-shadow: 0 2px 16px rgba(99,102,241,0.06), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
 /* Section label (monospace, uppercase, wide tracking) */
 .section-label {
   font-family: 'Geist Mono', ui-monospace, monospace;
