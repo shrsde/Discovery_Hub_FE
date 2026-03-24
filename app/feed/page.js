@@ -287,6 +287,7 @@ export default function FeedPage() {
   const [feed, setFeed] = useState([])
   const [interviews, setInterviews] = useState([])
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const [posting, setPosting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [view, setView] = useState('active')
@@ -329,6 +330,7 @@ export default function FeedPage() {
   }, [view])
 
   useEffect(() => {
+    setMounted(true)
     setLoading(true)
     Promise.all([
       loadFeed(),
@@ -906,6 +908,27 @@ export default function FeedPage() {
   }
 
   const dayKeys = Object.keys(grouped)
+
+  if (!mounted) return (
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-4 animate-pulse">
+      <div className="h-8 bg-card-hover rounded-xl w-48" />
+      <div className="glass rounded-2xl p-4 space-y-3">
+        <div className="h-20 bg-card-hover rounded-xl" />
+        <div className="h-8 bg-card-hover rounded-full w-24 ml-auto" />
+      </div>
+      {[1, 2, 3].map(i => (
+        <div key={i} className="glass rounded-2xl p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-card-hover rounded-full" />
+            <div className="h-4 bg-card-hover rounded w-32" />
+            <div className="h-3 bg-card-hover rounded w-16 ml-auto" />
+          </div>
+          <div className="h-4 bg-card-hover rounded w-full" />
+          <div className="h-4 bg-card-hover rounded w-3/4" />
+        </div>
+      ))}
+    </div>
+  )
 
   return (
     <div>
