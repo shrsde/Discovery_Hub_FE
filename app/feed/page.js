@@ -36,6 +36,8 @@ function MediaPreview({ item }) {
   if (!item.media_url && !item.media_type) return null
 
   if (item.media_type === 'video_link') {
+    // Don't show video embed for Google Meet links — they're not watchable videos
+    if (item.media_url?.includes('meet.google.com')) return null
     return (
       <div>
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-blue-600 hover:underline mt-1">
@@ -628,12 +630,16 @@ export default function FeedPage() {
       } finally { setSavingEdit(false) }
     }
 
+    const isMeetingCompleted = item.text?.includes('Meeting completed:') && item.summary?.includes('Meeting ID:')
+    const isMeetingScheduled = item.text?.startsWith('Scheduled meeting:')
+    const isMeeting = isMeetingCompleted || isMeetingScheduled || item.type === 'meeting'
+
     return (
       <div id={`post-${item.id}`} className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all ${
         isSelected ? 'border-accent ring-2 ring-accent/20'
         : item.pinned ? 'border-amber-300 bg-amber-50/50'
-        : item.type === 'meeting' && item.summary ? 'gradient-purple gradient-bg-purple'
-        : item.type === 'meeting' ? 'gradient-blue gradient-bg-blue'
+        : isMeetingCompleted ? 'border-l-4 border-l-indigo-400 bg-indigo-50/30'
+        : isMeetingScheduled || item.type === 'meeting' ? 'border-l-4 border-l-blue-400 bg-blue-50/30'
         : ''
       }`}>
         {selectMode && (
@@ -683,7 +689,7 @@ export default function FeedPage() {
           <LinkPreviews text={item.text} />
 
           {/* Meeting-specific UI */}
-          {item.type === 'meeting' && (
+          {isMeeting && (
             <div className="mt-2 space-y-2">
               {!item.summary && (
                 <div className="space-y-2">
@@ -699,82 +705,44 @@ export default function FeedPage() {
                 </div>
               )}
 
-              {item.summary && (() => {
-                // Extract participants and duration from summary
-                const participantMatch = item.summary.match(/Participants:\s*([^\n|]+)/)
-                const durationMatch = item.summary.match(/Duration:\s*([^\n]+)/)
-                const participants = participantMatch ? participantMatch[1].trim().split(',').map(p => p.trim()) : []
-                const duration = durationMatch ? durationMatch[1].trim() : ''
-                const summaryBody = item.summary.replace(/^Participants:.*\n*/m, '').replace(/^.*Duration:.*\n*/m, '').trim()
-
-                return (
-                <div className="glass-subtle rounded-2xl p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="section-label text-indigo-600 flex items-center gap-1.5">
-                      <span className="glyph">◎</span> Meeting Recap
-                    </div>
-                    <span className="tag tag-green">Completed</span>
-                  </div>
-                  {(participants.length > 0 || duration) && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {participants.map(p => (
-                        <span key={p} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          p === 'Wes' ? 'bg-wes/10 text-wes' : p === 'Gibb' ? 'bg-gibb/10 text-gibb' : 'bg-accent/5 text-text-secondary'
-                        }`}>
-                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white ${
-                            p === 'Wes' ? 'bg-wes' : p === 'Gibb' ? 'bg-gibb' : 'bg-accent'
-                          }`}>{p[0]}</span>
-                          {p}
-                        </span>
-                      ))}
-                      {duration && <span className="text-[10px] text-text-tertiary">{duration}</span>}
-                    </div>
-                  )}
-                  <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed">{summaryBody}</div>
-                </div>
-                )
-              })()}
-
-              {/* View Full Transcript toggle */}
-              {item.summary?.includes('Meeting ID:') && (() => {
-                const meetingIdMatch = item.summary.match(/Meeting ID:\s*([^\n]+)/)
+              {/* View Full Transcript toggle for completed meetings */}
+              {isMeetingCompleted && (() => {
+                const meetingIdMatch = item.summary?.match(/Meeting ID:\s*([^\n]+)/)
                 const meetingId = meetingIdMatch ? meetingIdMatch[1].trim() : null
-                const recordingMatch = item.summary.match(/Recording:\s*([^\n]+)/)
-                const recordingUrlFromSummary = recordingMatch ? recordingMatch[1].trim() : null
 
                 async function loadTranscript() {
                   if (transcriptText) { setShowTranscript(!showTranscript); return }
+                  if (!meetingId) return
                   setLoadingTranscript(true)
                   try {
                     const res = await api(`/api/meetings`)
                     const meeting = res.data?.find(m => m.id === meetingId)
                     setTranscriptText(meeting?.transcript || 'No transcript available.')
                     setShowTranscript(true)
-                  } catch (e) { setTranscriptText('Failed to load transcript.') ; setShowTranscript(true) }
+                  } catch (e) { setTranscriptText('Failed to load transcript.'); setShowTranscript(true) }
                   finally { setLoadingTranscript(false) }
                 }
 
                 return (
-                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <>
                     <button onClick={loadTranscript}
-                      className="text-[11px] px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200 border border-[rgba(0,0,0,0.08)] font-medium">
+                      className="text-[11px] px-3 py-1.5 rounded-full glass-subtle text-indigo-600 hover:text-indigo-800 transition-colors duration-200 border border-indigo-200 font-medium mt-1">
                       {loadingTranscript ? 'Loading...' : showTranscript ? 'Hide Transcript' : 'View Full Transcript'}
                     </button>
-                    {recordingUrlFromSummary && (
-                      <a href={recordingUrlFromSummary} target="_blank" rel="noopener"
-                        className="text-[11px] px-3 py-1.5 rounded-full glass-subtle text-indigo-600 hover:text-indigo-800 transition-colors duration-200 border border-indigo-200 font-medium">
-                        View Recording
-                      </a>
+                    {showTranscript && transcriptText && (
+                      <div className="glass-subtle rounded-2xl p-4 mt-2 max-h-96 overflow-y-auto border border-indigo-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="section-label text-indigo-600 flex items-center gap-1.5">
+                            <span className="glyph">◎</span> Full Transcript
+                          </div>
+                          <button onClick={() => setShowTranscript(false)} className="text-[10px] text-text-tertiary hover:text-text">Close</button>
+                        </div>
+                        <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed font-mono">{transcriptText}</div>
+                      </div>
                     )}
-                  </div>
+                  </>
                 )
               })()}
-              {showTranscript && transcriptText && (
-                <div className="glass-subtle rounded-2xl p-4 mt-2 max-h-80 overflow-y-auto">
-                  <div className="section-label text-text-secondary mb-2">Full Transcript</div>
-                  <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed font-mono">{transcriptText}</div>
-                </div>
-              )}
 
               {/* Upload files to meeting */}
               <div className="flex items-center gap-2 flex-wrap">
