@@ -578,6 +578,9 @@ export default function FeedPage() {
     const [uploadingMeetingFile, setUploadingMeetingFile] = useState(false)
     const [indexing, setIndexing] = useState(false)
     const [indexed, setIndexed] = useState(false)
+    const [showTranscript, setShowTranscript] = useState(false)
+    const [transcriptText, setTranscriptText] = useState(null)
+    const [loadingTranscript, setLoadingTranscript] = useState(false)
 
     async function handleIndexThis() {
       setIndexing(true)
@@ -731,6 +734,47 @@ export default function FeedPage() {
                 </div>
                 )
               })()}
+
+              {/* View Full Transcript toggle */}
+              {item.summary?.includes('Meeting ID:') && (() => {
+                const meetingIdMatch = item.summary.match(/Meeting ID:\s*([^\n]+)/)
+                const meetingId = meetingIdMatch ? meetingIdMatch[1].trim() : null
+                const recordingMatch = item.summary.match(/Recording:\s*([^\n]+)/)
+                const recordingUrlFromSummary = recordingMatch ? recordingMatch[1].trim() : null
+
+                async function loadTranscript() {
+                  if (transcriptText) { setShowTranscript(!showTranscript); return }
+                  setLoadingTranscript(true)
+                  try {
+                    const res = await api(`/api/meetings`)
+                    const meeting = res.data?.find(m => m.id === meetingId)
+                    setTranscriptText(meeting?.transcript || 'No transcript available.')
+                    setShowTranscript(true)
+                  } catch (e) { setTranscriptText('Failed to load transcript.') ; setShowTranscript(true) }
+                  finally { setLoadingTranscript(false) }
+                }
+
+                return (
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <button onClick={loadTranscript}
+                      className="text-[11px] px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200 border border-[rgba(0,0,0,0.08)] font-medium">
+                      {loadingTranscript ? 'Loading...' : showTranscript ? 'Hide Transcript' : 'View Full Transcript'}
+                    </button>
+                    {recordingUrlFromSummary && (
+                      <a href={recordingUrlFromSummary} target="_blank" rel="noopener"
+                        className="text-[11px] px-3 py-1.5 rounded-full glass-subtle text-indigo-600 hover:text-indigo-800 transition-colors duration-200 border border-indigo-200 font-medium">
+                        View Recording
+                      </a>
+                    )}
+                  </div>
+                )
+              })()}
+              {showTranscript && transcriptText && (
+                <div className="glass-subtle rounded-2xl p-4 mt-2 max-h-80 overflow-y-auto">
+                  <div className="section-label text-text-secondary mb-2">Full Transcript</div>
+                  <div className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed font-mono">{transcriptText}</div>
+                </div>
+              )}
 
               {/* Upload files to meeting */}
               <div className="flex items-center gap-2 flex-wrap">
