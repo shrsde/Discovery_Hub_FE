@@ -116,6 +116,7 @@ export default function InterviewFormPage({ params }) {
   const router = useRouter()
   const isNew = id === 'new'
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(!isNew)
   const [showImport, setShowImport] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -351,12 +352,17 @@ export default function InterviewFormPage({ params }) {
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
+    setSaved(false)
     try {
       const payload = { ...form, pain_points: form.pain_points.filter(p => p.description.trim()) }
       if (interviewStatus) payload.status = interviewStatus
       if (!isNew) payload.id = id
-      await saveInterview(payload)
-      router.push('/interviews')
+      const res = await saveInterview(payload)
+      if (isNew && res?.data?.id) {
+        router.replace(`/interviews/${res.data.id}`)
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
     } finally { setSaving(false) }
   }
 
@@ -893,10 +899,20 @@ export default function InterviewFormPage({ params }) {
             </section>
           )}
 
-          <button type="submit" disabled={saving}
-            className="w-full py-3.5 bg-accent text-white font-semibold rounded-full hover:bg-accent-light transition-all active:scale-[0.97] disabled:opacity-40 shadow-sm sticky bottom-20 md:bottom-4">
-            {saving ? 'Saving...' : isNew ? 'Save Interview' : 'Update Interview'}
-          </button>
+          <div className="flex items-center gap-3 sticky bottom-20 md:bottom-4">
+            <button type="submit" disabled={saving || saved}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-full transition-all active:scale-[0.97] disabled:opacity-80 shadow-sm ${
+                saved ? 'bg-green-500 text-white' : 'bg-accent text-white hover:bg-accent-light'
+              }`}>
+              {saving ? 'Saving...' : saved ? '✓ Saved' : isNew ? 'Save Interview' : 'Update Interview'}
+            </button>
+            {!isNew && (
+              <Link href={`/interviews/${id}/flow`}
+                className="py-2.5 px-5 text-sm font-semibold rounded-full bg-card-hover text-text hover:bg-white/80 transition-all active:scale-[0.97] shadow-sm border border-[rgba(0,0,0,0.08)]">
+                Generate Workflow
+              </Link>
+            )}
+          </div>
         </form>
       </div>
     </div>
