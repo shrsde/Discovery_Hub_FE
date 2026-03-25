@@ -121,6 +121,9 @@ function NavShell({ children }) {
   const [showQuickPost, setShowQuickPost] = useState(false)
   const [showQuickMeeting, setShowQuickMeeting] = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [navMounted, setNavMounted] = useState(false)
+
+  useEffect(() => { setNavMounted(true) }, [])
 
   const unreadCount = notifications.filter(n => !n.read).length
 
@@ -305,7 +308,22 @@ function NavShell({ children }) {
       </nav>
 
       <main className="max-w-[1100px] mx-auto px-6 py-8 pb-24 md:pb-8">
-        {children}
+        {navMounted ? children : (
+          <div className="space-y-4 animate-pulse">
+            <div className="h-8 bg-card-hover rounded-xl w-48" />
+            <div className="h-24 bg-card-hover rounded-2xl" />
+            {[1, 2, 3].map(i => (
+              <div key={i} className="glass rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-card-hover rounded-full" />
+                  <div className="h-4 bg-card-hover rounded w-32" />
+                </div>
+                <div className="h-4 bg-card-hover rounded w-full" />
+                <div className="h-4 bg-card-hover rounded w-3/4" />
+              </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* FAB — Desktop only */}
