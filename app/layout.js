@@ -216,7 +216,7 @@ function NavShell({ children }) {
           </Link>
           <div className="flex gap-1 items-center">
             {PRIMARY.map(({ href, label }) => (
-              <Link key={href} href={href}
+              <Link key={href} href={href} prefetch={false}
                 className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium uppercase tracking-nav transition-colors duration-200 ${isActive(href) ? 'bg-accent text-white' : 'text-text-tertiary hover:text-text'}`}>
                 {label}
               </Link>
@@ -232,7 +232,7 @@ function NavShell({ children }) {
               <DropdownMenuContent align="end" className="glass-strong rounded-xl shadow-lg py-1 w-40 border-0">
                 {MORE.map(({ href, label }) => (
                   <DropdownMenuItem key={href} asChild>
-                    <Link href={href}
+                    <Link href={href} prefetch={false}
                       className={`block px-3 py-2 text-sm transition-colors duration-200 ${isActive(href) ? 'text-accent font-medium' : 'text-text-secondary hover:text-text'}`}>
                       {label}
                     </Link>
@@ -307,7 +307,7 @@ function NavShell({ children }) {
         </div>
       </nav>
 
-      <main className="max-w-[1100px] mx-auto px-6 py-8 pb-24 md:pb-8">
+      <main key={pathname} className="max-w-[1100px] mx-auto px-6 py-8 pb-24 md:pb-8">
         {navMounted ? children : (
           <div className="space-y-4 animate-pulse">
             <div className="h-8 bg-card-hover rounded-xl w-48" />
