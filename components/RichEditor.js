@@ -15,6 +15,10 @@ const USERS = [
   { id: 'Gibb', label: 'Gibb', color: '#7c3aed', bg: '#F3EEFA' },
 ]
 
+// Dynamic mention items (projects get added at runtime)
+let _extraMentions = []
+export function setExtraMentions(items) { _extraMentions = items }
+
 const Icon = ({ d, size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d={d} />
@@ -63,16 +67,23 @@ const MentionList = forwardRef(function MentionList({ items, command }, ref) {
   }))
 
   return (
-    <div className="bg-white border border-border rounded-lg shadow-lg py-1 w-36 overflow-hidden">
+    <div className="bg-white border border-border rounded-lg shadow-lg py-1 w-48 overflow-hidden">
       {items.map((item, i) => {
         const u = USERS.find(u => u.id === item.id) || {}
+        const isProject = item.type === 'project'
         return (
           <button key={item.id} type="button"
             onClick={() => command(item)}
             className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition ${i === selectedIndex ? 'bg-card-hover' : 'hover:bg-card-hover'}`}>
-            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: u.color }}>
-              {item.label[0]}
-            </span>
+            {isProject ? (
+              <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] glyph" style={{ background: item.bg, color: item.color }}>
+                {item.icon || '◆'}
+              </span>
+            ) : (
+              <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: u.color }}>
+                {item.label[0]}
+              </span>
+            )}
             @{item.label}
           </button>
         )
@@ -84,7 +95,8 @@ const MentionList = forwardRef(function MentionList({ items, command }, ref) {
 
 const mentionSuggestion = {
   items: ({ query }) => {
-    return USERS.filter(u => u.label.toLowerCase().includes(query.toLowerCase()))
+    const all = [...USERS, ..._extraMentions]
+    return all.filter(u => u.label.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
   },
   render: () => {
     let component
@@ -125,12 +137,17 @@ const CustomMention = Mention.configure({
   HTMLAttributes: { class: 'mention-tag' },
   suggestion: mentionSuggestion,
   renderHTML: ({ node }) => {
-    const user = USERS.find(u => u.id === node.attrs.id) || { color: '#333', bg: '#eee' }
+    const user = USERS.find(u => u.id === node.attrs.id)
+    const project = _extraMentions.find(m => m.id === node.attrs.id)
+    const color = user?.color || project?.color || '#333'
+    const bg = user?.bg || project?.bg || '#eee'
+    const prefix = project ? '◆ ' : '@'
     return ['span', {
       class: 'mention-tag',
       'data-mention': node.attrs.id,
-      style: `background:${user.bg};color:${user.color};padding:2px 8px;border-radius:9999px;font-weight:600;font-size:13px;`,
-    }, `@${node.attrs.label || node.attrs.id}`]
+      'data-mention-type': project ? 'project' : 'user',
+      style: `background:${bg};color:${color};padding:2px 8px;border-radius:9999px;font-weight:600;font-size:13px;`,
+    }, `${prefix}${node.attrs.label || node.attrs.id}`]
   },
 })
 

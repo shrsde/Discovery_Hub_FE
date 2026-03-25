@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { api, getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications, createIndexEntry, getProjects, addProjectItem } from '@/lib/api'
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
-import RichEditor, { RichContent } from '@/components/RichEditor'
+import RichEditor, { RichContent, setExtraMentions } from '@/components/RichEditor'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -346,12 +346,29 @@ export default function FeedPage() {
     setFeed(r.data || [])
   }, [view])
 
+  const [projectsForMentions, setProjectsForMentions] = useState([])
+
   useEffect(() => {
     setMounted(true)
     setLoading(true)
     Promise.all([
       loadFeed(),
       getInterviews().then(r => setInterviews(r.data || [])),
+      getProjects().then(r => {
+        const projects = r.data || []
+        setProjectsForMentions(projects)
+        const COLOR_HEX = { blue: '#3b82f6', green: '#16a34a', amber: '#f59e0b', red: '#ef4444', purple: '#8b5cf6', peach: '#f97316' }
+        const COLOR_BG = { blue: '#eff6ff', green: '#f0fdf4', amber: '#fffbeb', red: '#fef2f2', purple: '#faf5ff', peach: '#fff7ed' }
+        setExtraMentions(projects.map(p => ({
+          id: `project:${p.id}`,
+          label: p.title,
+          color: COLOR_HEX[p.color] || '#333',
+          bg: COLOR_BG[p.color] || '#eee',
+          icon: p.icon,
+          type: 'project',
+          projectId: p.id,
+        })))
+      }),
     ]).finally(() => setLoading(false))
   }, [loadFeed])
 
@@ -536,7 +553,7 @@ export default function FeedPage() {
     if (!text.trim()) return
     setPosting(true)
     try {
-      await postFeed({
+      const res = await postFeed({
         author, type, text: text.trim(),
         linkedInterviewId: linkedId || null,
         tags: extractTags(text),
@@ -545,11 +562,33 @@ export default function FeedPage() {
         media_name: mediaName || null,
         attachments: pendingAttachments.length > 0 ? pendingAttachments : null,
       })
+
+      // Auto-add post to @mentioned projects
+      const postId = res?.data?.id
+      if (postId) {
+        const mentionedProjects = extractProjectMentions(text)
+        for (const projectId of mentionedProjects) {
+          try {
+            await addProjectItem(projectId, { item_type: 'feed', item_id: postId, added_by: author })
+          } catch (err) { console.error('Auto-add to project failed:', err) }
+        }
+      }
+
       setText('')
       setLinkedId('')
       clearMedia()
       await loadFeed()
     } finally { setPosting(false) }
+  }
+
+  function extractProjectMentions(text) {
+    const ids = []
+    const regex = /data-mention="project:([^"]+)"/g
+    let match
+    while ((match = regex.exec(text)) !== null) {
+      ids.push(match[1])
+    }
+    return ids
   }
 
   async function handlePin(id, pinned) {
