@@ -58,7 +58,8 @@ export default function ProjectsPage() {
   }
 
   async function loadDetail(id) {
-    setLoadingDetail(true)
+    // Only show loading skeleton if we don't already have detail data
+    if (!projectDetail || projectDetail.id !== id) setLoadingDetail(true)
     try {
       const res = await getProject(id)
       setProjectDetail(res.data)
@@ -72,7 +73,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (activeProject) { loadDetail(activeProject); setCurrentFolder(null) }
-    else setProjectDetail(null)
+    else { setProjectDetail(null); setLoadingDetail(false) }
   }, [activeProject])
 
   async function handleCreate(e) {
