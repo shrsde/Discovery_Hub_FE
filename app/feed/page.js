@@ -551,7 +551,12 @@ export default function FeedPage() {
     )
   }
   if (filterType !== 'all') {
-    filtered = filtered.filter(f => f.type === filterType)
+    filtered = filtered.filter(f => {
+      if (filterType === 'meeting') {
+        return f.type === 'meeting' || f.text?.includes('Meeting completed:') || f.text?.startsWith('Scheduled meeting:')
+      }
+      return f.type === filterType
+    })
   }
   if (sortOrder === 'oldest') {
     filtered = [...filtered].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
@@ -570,7 +575,8 @@ export default function FeedPage() {
   })
 
   function FeedItem({ item }) {
-    const ft = getFeedType(item.type)
+    const isMeetingPost = item.text?.includes('Meeting completed:') || item.text?.startsWith('Scheduled meeting:')
+    const ft = isMeetingPost ? getFeedType('meeting') : getFeedType(item.type)
     const isSelected = selectedPosts.has(item.id)
     const hasMentionForWes = (item.tags || []).includes('Wes')
     const hasMentionForGibb = (item.tags || []).includes('Gibb')
@@ -980,18 +986,13 @@ export default function FeedPage() {
                 }`}>{v.label}</button>
             ))}
           </div>
-          <div className="flex gap-1 flex-wrap">
-            <button onClick={() => setFilterType('all')}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                filterType === 'all' ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
-              }`}>All</button>
+          <select value={filterType} onChange={e => setFilterType(e.target.value)}
+            className="!w-auto !rounded-full text-xs !py-1.5 glass-subtle !border-[rgba(0,0,0,0.08)]">
+            <option value="all">All types</option>
             {FEED_TYPES.map(t => (
-              <button key={t.value} onClick={() => setFilterType(t.value)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  filterType === t.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
-                }`}>{t.emoji} {t.label}</button>
+              <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
             ))}
-          </div>
+          </select>
           {(searchQuery || filterType !== 'all') && (
             <button onClick={() => { setSearchQuery(''); setFilterType('all') }}
               className="text-xs text-text-tertiary hover:text-text transition">Clear</button>
