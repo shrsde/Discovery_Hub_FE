@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getProjects, getProject, createProject, addProjectItem, removeProjectItem } from '@/lib/api'
+import { getProjects, getProject, createProject, addProjectItem, removeProjectItem, updateProjectItem } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { timeAgo } from '@/lib/constants'
 import { RichContent } from '@/components/RichEditor'
@@ -41,6 +41,14 @@ export default function ProjectsPage() {
   const [linkForm, setLinkForm] = useState({ title: '', url: '', notes: '' })
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState('all')
+  const [currentFolder, setCurrentFolder] = useState(null) // null = root
+  const [expandedItems, setExpandedItems] = useState(new Set())
+  const [showAddNote, setShowAddNote] = useState(false)
+  const [showAddFolder, setShowAddFolder] = useState(false)
+  const [noteForm, setNoteForm] = useState({ title: '', notes: '' })
+  const [folderName, setFolderName] = useState('')
+  const [addingNote, setAddingNote] = useState(false)
+  const [addingFolder, setAddingFolder] = useState(false)
   const [form, setForm] = useState({ title: '', summary: '', description: '', public_url: '', icon: '◈', color: 'blue' })
 
   async function loadProjects() {
@@ -61,7 +69,7 @@ export default function ProjectsPage() {
   }, [])
 
   useEffect(() => {
-    if (activeProject) loadDetail(activeProject)
+    if (activeProject) { loadDetail(activeProject); setCurrentFolder(null) }
     else setProjectDetail(null)
   }, [activeProject])
 
@@ -82,6 +90,55 @@ export default function ProjectsPage() {
     await removeProjectItem(itemId)
     if (activeProject) await loadDetail(activeProject)
     await loadProjects()
+  }
+
+  async function handleTogglePin(itemId, currentPinned) {
+    await updateProjectItem(itemId, { pinned: !currentPinned })
+    await loadDetail(activeProject)
+  }
+
+  async function handleAddNote(e) {
+    e.preventDefault()
+    if (!noteForm.title.trim()) return
+    setAddingNote(true)
+    try {
+      await addProjectItem(activeProject, {
+        item_type: 'note',
+        title: noteForm.title.trim(),
+        notes: noteForm.notes.trim(),
+        folder_path: currentFolder,
+        added_by: displayName || 'Wes',
+      })
+      setNoteForm({ title: '', notes: '' })
+      setShowAddNote(false)
+      await loadDetail(activeProject)
+      await loadProjects()
+    } finally { setAddingNote(false) }
+  }
+
+  async function handleAddFolder(e) {
+    e.preventDefault()
+    if (!folderName.trim()) return
+    setAddingFolder(true)
+    try {
+      await addProjectItem(activeProject, {
+        item_type: 'folder',
+        title: folderName.trim(),
+        folder_path: currentFolder,
+        added_by: displayName || 'Wes',
+      })
+      setFolderName('')
+      setShowAddFolder(false)
+      await loadDetail(activeProject)
+    } finally { setAddingFolder(false) }
+  }
+
+  function toggleExpand(itemId) {
+    setExpandedItems(prev => {
+      const next = new Set(prev)
+      next.has(itemId) ? next.delete(itemId) : next.add(itemId)
+      return next
+    })
   }
 
   async function handleAddLink(e) {
@@ -106,7 +163,12 @@ export default function ProjectsPage() {
   // Filter items
   const items = projectDetail?.items || []
   const q = searchQuery.toLowerCase()
-  let filteredItems = items
+  const pinnedItems = items.filter(i => i.pinned && i.item_type === 'link')
+  const folders = items.filter(i => i.item_type === 'folder')
+  const stickyNotes = items.filter(i => i.item_type === 'note' && (i.folder_path || null) === currentFolder)
+
+  // Items in current folder (excluding folders, pinned links, notes)
+  let filteredItems = items.filter(i => i.item_type !== 'folder' && i.item_type !== 'note' && !i.pinned && (i.folder_path || null) === currentFolder)
   if (filterType !== 'all') {
     filteredItems = filteredItems.filter(i => i.item_type === filterType)
   }
@@ -116,6 +178,21 @@ export default function ProjectsPage() {
       const text = [i.title, i.url, i.notes, s?.text, s?.title, s?.interviewee_name, s?.company, s?.biggest_signal].filter(Boolean).join(' ').toLowerCase()
       return text.includes(q)
     })
+  }
+
+  // Folders in current path
+  const currentFolders = folders.filter(f => (f.folder_path || null) === currentFolder)
+
+  // Breadcrumb path
+  const breadcrumbs = []
+  if (currentFolder) {
+    let path = currentFolder
+    while (path) {
+      const folder = folders.find(f => f.title === path)
+      breadcrumbs.unshift({ name: path, folder })
+      // Walk up: folder_path of the folder item itself
+      path = folder?.folder_path || null
+    }
   }
 
   const typeCounts = {}
@@ -310,25 +387,97 @@ export default function ProjectsPage() {
                       <a href={projectDetail.public_url} target="_blank" rel="noopener"
                         className="text-[10px] text-accent hover:underline mt-0.5 block truncate">{projectDetail.public_url}</a>
                     )}
-                    {projectDetail?.description && <p className="text-xs text-text-tertiary mt-1 line-clamp-2">{projectDetail.description}</p>}
                   </div>
-                  <Link href={`/projects/${activeProject}`}
-                    className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition font-medium shrink-0">
-                    Edit
-                  </Link>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => setShowAddNote(true)} className="text-[11px] px-2.5 py-1 rounded-full glass-subtle text-text-secondary hover:text-text transition border border-[rgba(0,0,0,0.08)]">+ Note</button>
+                    <button onClick={() => setShowAddFolder(true)} className="text-[11px] px-2.5 py-1 rounded-full glass-subtle text-text-secondary hover:text-text transition border border-[rgba(0,0,0,0.08)]">+ Folder</button>
+                    <Link href={`/projects/${activeProject}`}
+                      className="text-[11px] px-2.5 py-1 rounded-full glass-subtle text-text-secondary hover:text-text transition border border-[rgba(0,0,0,0.08)]">
+                      Edit
+                    </Link>
+                  </div>
                 </div>
               </div>
 
+              {/* Pinned links */}
+              {pinnedItems.length > 0 && (
+                <div className="glass-subtle rounded-xl p-3">
+                  <div className="section-label text-[9px] mb-2 flex items-center gap-1"><span className="glyph text-amber-500">◆</span> Pinned</div>
+                  <div className="flex flex-wrap gap-2">
+                    {pinnedItems.map(item => (
+                      <a key={item.id} href={item.url} target="_blank" rel="noopener"
+                        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full glass-subtle text-accent hover:text-accent-light border border-accent/20 transition font-medium">
+                        <span className="glyph text-[10px]">▸</span> {item.title || item.url}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Breadcrumbs */}
+              {currentFolder && (
+                <div className="flex items-center gap-1 text-xs text-text-secondary">
+                  <button onClick={() => setCurrentFolder(null)} className="hover:text-accent transition">Root</button>
+                  {breadcrumbs.map((b, i) => (
+                    <span key={i} className="flex items-center gap-1">
+                      <span className="text-text-tertiary">/</span>
+                      {i < breadcrumbs.length - 1 ? (
+                        <button onClick={() => setCurrentFolder(b.name)} className="hover:text-accent transition">{b.name}</button>
+                      ) : (
+                        <span className="font-semibold text-text">{b.name}</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Sticky notes */}
+              {stickyNotes.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {stickyNotes.map(note => {
+                    const isExpanded = expandedItems.has(note.id)
+                    return (
+                      <div key={note.id} onClick={() => toggleExpand(note.id)}
+                        className="glass rounded-xl p-3 cursor-pointer hover:shadow-md transition-all border-l-3 border-l-amber-300 bg-amber-50/20 min-h-[60px]">
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="text-xs font-semibold text-text">{note.title}</span>
+                          <button onClick={e => { e.stopPropagation(); handleRemoveItem(note.id) }}
+                            className="text-[9px] text-text-tertiary hover:text-red-500 transition shrink-0">×</button>
+                        </div>
+                        {note.notes && (
+                          <p className={`text-[11px] text-text-secondary mt-1 whitespace-pre-wrap leading-relaxed ${isExpanded ? '' : 'line-clamp-3'}`}>{note.notes}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Folders */}
+              {currentFolders.length > 0 && (
+                <div className="space-y-1">
+                  {currentFolders.map(f => (
+                    <button key={f.id} onClick={() => setCurrentFolder(f.title)}
+                      className="w-full text-left glass-subtle rounded-xl px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/60 transition group">
+                      <span className="text-amber-500 glyph">◇</span>
+                      <span className="text-sm font-medium text-text">{f.title}</span>
+                      <span className="text-[10px] text-text-tertiary ml-auto group-hover:text-text transition">→</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Items */}
-              {filteredItems.length === 0 ? (
+              {filteredItems.length === 0 && currentFolders.length === 0 && stickyNotes.length === 0 ? (
                 <div className="text-center py-12 text-text-tertiary text-sm">
-                  {items.length === 0 ? 'No items in this project yet. @mention this project in a feed post or use "Add to Project" to get started.' : 'No items match your search.'}
+                  {items.length === 0 ? 'No items yet. @mention this project in a feed post or use "Add to Project".' : currentFolder ? 'This folder is empty.' : 'No items match your search.'}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {filteredItems.map(item => {
                     const meta = TYPE_META[item.item_type] || { label: item.item_type, icon: '◈', color: 'text-text-secondary bg-card-hover border-border' }
                     const source = item.source
+                    const isExpanded = expandedItems.has(item.id)
 
                     return (
                       <div key={item.id} className="glass rounded-2xl p-4">
@@ -340,9 +489,9 @@ export default function ProjectsPage() {
                             {item.item_type === 'feed' && source && (
                               <div>
                                 {source.text?.startsWith('<') ? (
-                                  <div className="text-sm line-clamp-3"><RichContent html={source.text} /></div>
+                                  <div className={`text-sm ${isExpanded ? '' : 'line-clamp-2'}`}><RichContent html={source.text} /></div>
                                 ) : (
-                                  <p className="text-sm text-text line-clamp-3">{source.text}</p>
+                                  <p className={`text-sm text-text ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>{source.text}</p>
                                 )}
                                 <div className="flex items-center gap-2 mt-1 text-[10px] text-text-tertiary">
                                   <span>{source.author}</span>
@@ -357,7 +506,7 @@ export default function ProjectsPage() {
                                   {source.interviewee_name || 'Unknown'} <span className="text-text-secondary font-normal">at</span> {source.company || 'Unknown'}
                                 </Link>
                                 {source.role && <p className="text-xs text-text-secondary mt-0.5">{source.role}</p>}
-                                {source.biggest_signal && <p className="text-xs text-green-700 mt-1">{source.biggest_signal}</p>}
+                                {isExpanded && source.biggest_signal && <p className="text-xs text-green-700 mt-1">{source.biggest_signal}</p>}
                               </div>
                             )}
                             {item.item_type === 'meeting' && source && (
@@ -367,6 +516,7 @@ export default function ProjectsPage() {
                                   <span className={`tag ${source.status === 'completed' ? 'tag-green' : 'tag-blue'}`}>{source.status}</span>
                                   {source.scheduled_at && <span>{new Date(source.scheduled_at).toLocaleDateString()}</span>}
                                 </div>
+                                {isExpanded && source.parsed_summary && <p className="text-xs text-text-secondary mt-2 whitespace-pre-wrap">{source.parsed_summary}</p>}
                               </div>
                             )}
                             {(item.item_type === 'link' || item.item_type === 'document') && (
@@ -378,21 +528,60 @@ export default function ProjectsPage() {
                                 ) : (
                                   <span className="text-sm font-medium text-text">{item.title}</span>
                                 )}
-                                {item.notes && <p className="text-xs text-text-secondary mt-0.5">{item.notes}</p>}
+                                {isExpanded && item.notes && <p className="text-xs text-text-secondary mt-0.5">{item.notes}</p>}
                               </div>
                             )}
                             {!source && item.item_type !== 'link' && item.item_type !== 'document' && (
                               <span className="text-xs text-text-tertiary italic">Item no longer available</span>
                             )}
                           </div>
-                          <button onClick={() => handleRemoveItem(item.id)}
-                            className="text-[10px] text-text-tertiary hover:text-red-500 transition shrink-0">Remove</button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => toggleExpand(item.id)}
+                              className="text-[10px] text-text-tertiary hover:text-text transition">{isExpanded ? 'Less' : 'More'}</button>
+                            {item.item_type === 'link' && (
+                              <button onClick={() => handleTogglePin(item.id, item.pinned)}
+                                className={`text-[10px] transition ${item.pinned ? 'text-amber-500' : 'text-text-tertiary hover:text-amber-500'}`}>
+                                {item.pinned ? '◆' : '◇'}
+                              </button>
+                            )}
+                            <button onClick={() => handleRemoveItem(item.id)}
+                              className="text-[10px] text-text-tertiary hover:text-red-500 transition">×</button>
+                          </div>
                         </div>
                       </div>
                     )
                   })}
                 </div>
               )}
+
+              {/* Add Note Dialog */}
+              <Dialog open={showAddNote} onOpenChange={setShowAddNote}>
+                <DialogContent className="glass-strong rounded-2xl border-0 shadow-xl w-full max-w-sm p-5 space-y-4">
+                  <DialogHeader><DialogTitle className="text-sm font-semibold text-text">New Sticky Note</DialogTitle></DialogHeader>
+                  <form onSubmit={handleAddNote} className="space-y-3">
+                    <input value={noteForm.title} onChange={e => setNoteForm(f => ({ ...f, title: e.target.value }))} placeholder="Note title" autoFocus />
+                    <textarea value={noteForm.notes} onChange={e => setNoteForm(f => ({ ...f, notes: e.target.value }))} placeholder="Content..." rows={4} className="resize-none" />
+                    <button type="submit" disabled={addingNote || !noteForm.title.trim()}
+                      className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all disabled:opacity-40">
+                      {addingNote ? 'Adding...' : 'Add Note'}
+                    </button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              {/* Add Folder Dialog */}
+              <Dialog open={showAddFolder} onOpenChange={setShowAddFolder}>
+                <DialogContent className="glass-strong rounded-2xl border-0 shadow-xl w-full max-w-sm p-5 space-y-4">
+                  <DialogHeader><DialogTitle className="text-sm font-semibold text-text">New Folder</DialogTitle></DialogHeader>
+                  <form onSubmit={handleAddFolder} className="space-y-3">
+                    <input value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="Folder name" autoFocus />
+                    <button type="submit" disabled={addingFolder || !folderName.trim()}
+                      className="w-full py-2.5 bg-accent text-white text-sm font-semibold rounded-full hover:bg-accent-light transition-all disabled:opacity-40">
+                      {addingFolder ? 'Creating...' : 'Create Folder'}
+                    </button>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </>
           )}
         </div>
