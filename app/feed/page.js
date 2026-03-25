@@ -305,6 +305,7 @@ export default function FeedPage() {
   const [filterType, setFilterType] = useState('all')
   const [sortOrder, setSortOrder] = useState('newest')
   const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [composerDragging, setComposerDragging] = useState(false)
   const [meetingTitle, setMeetingTitle] = useState('')
   const [meetingOrganizer, setMeetingOrganizer] = useState('Wes')
   const [creatingMeeting, setCreatingMeeting] = useState(false)
@@ -364,7 +365,7 @@ export default function FeedPage() {
   }, [feed])
 
   async function handleFileUpload(e) {
-    const file = e.target.files?.[0]
+    const file = e.target?.files?.[0] || e
     if (!file) return
     setUploading(true)
     try {
@@ -378,6 +379,13 @@ export default function FeedPage() {
     } finally {
       setUploading(false)
     }
+  }
+
+  function handleComposerDrop(e) {
+    e.preventDefault()
+    setComposerDragging(false)
+    const file = e.dataTransfer?.files?.[0]
+    if (file) handleFileUpload(file)
   }
 
   function handleAddVideoLink() {
@@ -590,6 +598,7 @@ export default function FeedPage() {
     const [showTranscript, setShowTranscript] = useState(false)
     const [transcriptText, setTranscriptText] = useState(null)
     const [loadingTranscript, setLoadingTranscript] = useState(false)
+    const [fileDragging, setFileDragging] = useState(false)
 
     async function handleIndexThis() {
       setIndexing(true)
@@ -750,8 +759,25 @@ export default function FeedPage() {
                 )
               })()}
 
-              {/* Upload files to meeting */}
-              <div className="flex items-center gap-2 flex-wrap">
+              {/* Upload files to meeting — supports drag & drop */}
+              <div
+                onDragOver={e => { e.preventDefault(); setFileDragging(true) }}
+                onDragEnter={e => { e.preventDefault(); setFileDragging(true) }}
+                onDragLeave={e => { e.preventDefault(); setFileDragging(false) }}
+                onDrop={e => {
+                  e.preventDefault()
+                  setFileDragging(false)
+                  const file = e.dataTransfer?.files?.[0]
+                  if (file) handleMeetingFileUpload({ target: { files: [file] } })
+                }}
+                className={`flex items-center gap-2 flex-wrap rounded-xl p-2 -mx-2 transition-all ${
+                  fileDragging ? 'ring-2 ring-accent ring-dashed bg-accent/5' : ''
+                }`}>
+                {fileDragging && (
+                  <div className="w-full text-center py-1 text-xs text-accent font-medium animate-pulse">
+                    Drop file to upload
+                  </div>
+                )}
                 <input ref={meetingFileRef} type="file" className="hidden" accept="*/*" onChange={handleMeetingFileUpload} />
                 <button type="button" onClick={() => meetingFileRef.current?.click()} disabled={uploadingMeetingFile}
                   className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition-colors duration-200 border border-[rgba(0,0,0,0.08)]">
@@ -1001,7 +1027,19 @@ export default function FeedPage() {
 
         {/* Composer */}
         {view !== 'archived' && (
-          <form onSubmit={handlePost} className="glass rounded-2xl p-4 space-y-3 sticky top-14 z-30">
+          <form onSubmit={handlePost}
+            onDragOver={e => { e.preventDefault(); setComposerDragging(true) }}
+            onDragEnter={e => { e.preventDefault(); setComposerDragging(true) }}
+            onDragLeave={e => { e.preventDefault(); setComposerDragging(false) }}
+            onDrop={handleComposerDrop}
+            className={`glass rounded-2xl p-4 space-y-3 sticky top-14 z-30 transition-all ${
+              composerDragging ? 'ring-2 ring-accent ring-dashed bg-accent/5' : ''
+            }`}>
+            {composerDragging && (
+              <div className="text-center py-3 text-xs text-accent font-medium animate-pulse">
+                Drop file to attach
+              </div>
+            )}
             <RichEditor content={text} onChange={setText}
               placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
 
