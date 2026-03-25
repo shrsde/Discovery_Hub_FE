@@ -980,13 +980,18 @@ export default function FeedPage() {
                 }`}>{v.label}</button>
             ))}
           </div>
-          <select value={filterType} onChange={e => setFilterType(e.target.value)}
-            className="!w-auto !rounded-full text-xs !py-1.5">
-            <option value="all">All types</option>
+          <div className="flex gap-1 flex-wrap">
+            <button onClick={() => setFilterType('all')}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                filterType === 'all' ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
+              }`}>All</button>
             {FEED_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
+              <button key={t.value} onClick={() => setFilterType(t.value)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  filterType === t.value ? 'bg-accent text-white' : 'text-text-secondary hover:bg-card-hover'
+                }`}>{t.emoji} {t.label}</button>
             ))}
-          </select>
+          </div>
           {(searchQuery || filterType !== 'all') && (
             <button onClick={() => { setSearchQuery(''); setFilterType('all') }}
               className="text-xs text-text-tertiary hover:text-text transition">Clear</button>
