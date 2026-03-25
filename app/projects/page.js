@@ -31,6 +31,7 @@ export default function ProjectsPage() {
   const { displayName } = useAuth()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const [activeProject, setActiveProject] = useState(null)
   const [projectDetail, setProjectDetail] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -65,6 +66,7 @@ export default function ProjectsPage() {
   }
 
   useEffect(() => {
+    setMounted(true)
     loadProjects().finally(() => setLoading(false))
   }, [])
 
@@ -198,7 +200,7 @@ export default function ProjectsPage() {
   const typeCounts = {}
   for (const i of items) { typeCounts[i.item_type] = (typeCounts[i.item_type] || 0) + 1 }
 
-  if (loading) return (
+  if (!mounted || loading) return (
     <div className="space-y-4 animate-pulse">
       <div className="h-8 bg-card-hover rounded-xl w-48" />
       <div className="flex gap-6">
