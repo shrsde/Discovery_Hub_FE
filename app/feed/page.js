@@ -31,63 +31,79 @@ function VideoEmbed({ url }) {
   )
 }
 
-function MediaPreview({ item }) {
+function AttachmentItem({ att }) {
   const [expanded, setExpanded] = useState(false)
-  if (!item.media_url && !item.media_type) return null
+  const url = att.url
+  const type = att.type
+  const name = att.name
 
-  if (item.media_type === 'video_link') {
-    // Don't show video embed for Google Meet links — they're not watchable videos
-    if (item.media_url?.includes('meet.google.com')) return null
+  if (type === 'video_link') {
+    if (url?.includes('meet.google.com')) return null
     return (
       <div>
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-blue-600 hover:underline mt-1">
           {expanded ? 'Hide video' : 'Show video'}
         </button>
-        {expanded && <VideoEmbed url={item.media_url} />}
+        {expanded && <VideoEmbed url={url} />}
       </div>
     )
   }
-
-  if (item.media_type === 'image') {
+  if (type === 'image') {
     return (
       <div>
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-blue-600 hover:underline mt-1">
-          {expanded ? 'Hide image' : `Show image: ${item.media_name || 'attachment'}`}
+          {expanded ? 'Hide image' : `Show image: ${name || 'attachment'}`}
         </button>
         {expanded && (
           <div className="mt-2 rounded-lg overflow-hidden border border-border">
-            <img src={item.media_url} alt={item.media_name} className="w-full rounded-lg" />
+            <img src={url} alt={name} className="w-full rounded-lg" />
           </div>
         )}
       </div>
     )
   }
-
-  if (item.media_type === 'video') {
+  if (type === 'video') {
     return (
       <div>
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-blue-600 hover:underline mt-1">
-          {expanded ? 'Hide video' : `Show video: ${item.media_name || 'attachment'}`}
+          {expanded ? 'Hide video' : `Show video: ${name || 'attachment'}`}
         </button>
         {expanded && (
           <div className="mt-2 rounded-lg overflow-hidden border border-border">
-            <video src={item.media_url} controls className="max-w-full max-h-80" />
+            <video src={url} controls className="max-w-full max-h-80" />
           </div>
         )}
       </div>
     )
   }
+  return (
+    <a href={url} target="_blank" rel="noopener"
+      className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition w-fit">
+      <span className="glyph">◈</span> {name || 'Download file'}
+    </a>
+  )
+}
 
-  if (item.media_type === 'document') {
-    return (
-      <a href={item.media_url} target="_blank" rel="noopener"
-        className="mt-2 flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition w-fit">
-        <span className="glyph">◈</span> {item.media_name || 'Download document'}
-      </a>
-    )
-  }
+function MediaPreview({ item }) {
+  // Multiple attachments (new format)
+  const attachments = item.attachments || []
+  // Legacy single media
+  const hasLegacyMedia = item.media_url && !attachments.some(a => a.url === item.media_url)
 
-  return null
+  if (attachments.length === 0 && !item.media_url) return null
+
+  const allAttachments = [
+    ...(hasLegacyMedia ? [{ url: item.media_url, type: item.media_type, name: item.media_name }] : []),
+    ...attachments,
+  ]
+
+  if (allAttachments.length === 0) return null
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {allAttachments.map((att, i) => <AttachmentItem key={i} att={att} />)}
+    </div>
+  )
 }
 
 // Extract URLs from text/html and show previews
@@ -297,6 +313,7 @@ export default function FeedPage() {
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaType, setMediaType] = useState(null)
   const [mediaName, setMediaName] = useState('')
+  const [pendingAttachments, setPendingAttachments] = useState([])
   const [videoLink, setVideoLink] = useState('')
   const [showMediaOptions, setShowMediaOptions] = useState(false)
   const [selectedPosts, setSelectedPosts] = useState(new Set())
@@ -370,14 +387,23 @@ export default function FeedPage() {
     setUploading(true)
     try {
       const res = await uploadFeedMedia(file)
-      setMediaUrl(res.url)
-      setMediaType(res.mediaType)
-      setMediaName(res.mediaName)
+      setPendingAttachments(prev => [...prev, {
+        url: res.url,
+        type: res.mediaType,
+        name: res.mediaName || file.name,
+      }])
+      // Also set first attachment as primary media for backward compat
+      if (!mediaUrl) {
+        setMediaUrl(res.url)
+        setMediaType(res.mediaType)
+        setMediaName(res.mediaName)
+      }
       setShowMediaOptions(false)
     } catch (err) {
       alert('Upload failed: ' + err.message)
     } finally {
       setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -401,6 +427,24 @@ export default function FeedPage() {
     setMediaUrl('')
     setMediaType(null)
     setMediaName('')
+    setPendingAttachments([])
+  }
+
+  function removeAttachment(idx) {
+    setPendingAttachments(prev => {
+      const next = prev.filter((_, i) => i !== idx)
+      // Update primary media to first remaining attachment or clear
+      if (next.length > 0) {
+        setMediaUrl(next[0].url)
+        setMediaType(next[0].type)
+        setMediaName(next[0].name)
+      } else {
+        setMediaUrl('')
+        setMediaType(null)
+        setMediaName('')
+      }
+      return next
+    })
   }
 
   function addExtraEmail() {
@@ -499,6 +543,7 @@ export default function FeedPage() {
         media_url: mediaUrl || null,
         media_type: mediaType || null,
         media_name: mediaName || null,
+        attachments: pendingAttachments.length > 0 ? pendingAttachments : null,
       })
       setText('')
       setLinkedId('')
@@ -1043,39 +1088,39 @@ export default function FeedPage() {
             <RichEditor content={text} onChange={setText}
               placeholder="What's on your mind? Use @Wes or @Gibb to tag" />
 
-            {mediaUrl && (
-              <div className="flex items-center gap-2 bg-card-hover rounded-lg px-3 py-2">
-                <span className="glyph text-sm">
-                  {mediaType === 'image' && '◈'}
-                  {mediaType === 'video' && '▸'}
-                  {mediaType === 'video_link' && '◎'}
-                  {mediaType === 'document' && '◇'}
-                </span>
-                <span className="text-xs text-text-secondary flex-1 truncate">{mediaName || mediaUrl}</span>
-                <button type="button" onClick={clearMedia} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+            {pendingAttachments.length > 0 && (
+              <div className="space-y-1.5">
+                {pendingAttachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-card-hover rounded-lg px-3 py-2">
+                    <span className="glyph text-sm">
+                      {att.type === 'image' && '◈'}
+                      {att.type === 'video' && '▸'}
+                      {att.type === 'video_link' && '◎'}
+                      {(!att.type || att.type === 'document') && '◇'}
+                    </span>
+                    <span className="text-xs text-text-secondary flex-1 truncate">{att.name || att.url}</span>
+                    <button type="button" onClick={() => removeAttachment(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                  </div>
+                ))}
               </div>
             )}
 
             <div className="flex items-center gap-2 flex-wrap">
-              {!mediaUrl && (
-                <>
-                  <input ref={fileInputRef} type="file" className="hidden"
-                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md"
-                    onChange={handleFileUpload} />
-                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                    className="text-xs px-3 py-1.5 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">
-                    {uploading ? 'Uploading...' : '+ Attach'}
-                  </button>
-                  <div className="flex items-center gap-1">
-                    <input value={videoLink} onChange={e => setVideoLink(e.target.value)}
-                      placeholder="Video link" className="!w-36 text-xs !py-1" />
-                    {videoLink.trim() && (
-                      <button type="button" onClick={handleAddVideoLink}
-                        className="text-xs px-2 py-1 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">Add</button>
-                    )}
-                  </div>
-                </>
-              )}
+              <input ref={fileInputRef} type="file" className="hidden"
+                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md"
+                onChange={handleFileUpload} />
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                className="text-xs px-3 py-1.5 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">
+                {uploading ? 'Uploading...' : pendingAttachments.length > 0 ? '+ More Files' : '+ Attach'}
+              </button>
+              <div className="flex items-center gap-1">
+                <input value={videoLink} onChange={e => setVideoLink(e.target.value)}
+                  placeholder="Video link" className="!w-36 text-xs !py-1" />
+                {videoLink.trim() && (
+                  <button type="button" onClick={handleAddVideoLink}
+                    className="text-xs px-2 py-1 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">Add</button>
+                )}
+              </div>
               <select value={type} onChange={e => setType(e.target.value)}
                 className="!w-auto !rounded-full text-xs !py-1.5">
                 {FEED_TYPES.map(t => (
