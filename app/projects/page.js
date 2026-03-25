@@ -164,94 +164,86 @@ export default function ProjectsPage() {
       </div>
 
       {/* Main layout */}
-      <div className="flex gap-6">
-        {/* Project sidebar */}
-        <div className="hidden md:block w-40 shrink-0">
-          <div className="sticky top-40 space-y-1 max-h-[70vh] overflow-y-auto">
-            <div className="section-label text-[9px] px-2 mb-1 flex items-center gap-1">
-              <span className="glyph text-xs">◆</span> Projects
-            </div>
-            {projects.map(p => (
-              <button key={p.id} onClick={() => setActiveProject(activeProject === p.id ? null : p.id)}
-                className={`w-full text-left px-2 py-2 rounded-lg transition-colors duration-200 ${
-                  activeProject === p.id ? 'bg-accent text-white' : 'text-text-secondary hover:bg-white/40'
-                }`}>
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm glyph ${activeProject === p.id ? '' : ''}`} style={{ color: activeProject === p.id ? 'white' : COLOR_HEX[p.color] }}>
-                    {p.icon || '◈'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-semibold truncate">{p.title}</div>
-                    <div className={`text-[10px] ${activeProject === p.id ? 'text-white/70' : 'text-text-tertiary'}`}>{p.item_count || 0} items</div>
-                  </div>
-                </div>
-              </button>
-            ))}
-            {projects.length === 0 && (
-              <div className="text-[10px] text-text-tertiary px-2 py-4">No projects yet</div>
-            )}
+      {!activeProject ? (
+        /* No project selected — full-width overview */
+        projects.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-4xl mb-3 glyph">◆</div>
+            <div className="text-text-secondary text-sm">No projects yet</div>
+            <button onClick={() => setShowCreate(true)}
+              className="mt-4 text-xs px-4 py-2 rounded-full bg-accent text-white hover:bg-accent-light transition-all font-semibold">
+              Create your first project
+            </button>
           </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 space-y-4">
-          {/* Mobile project selector */}
-          <div className="md:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {projects.map(p => (
-              <button key={p.id} onClick={() => setActiveProject(activeProject === p.id ? null : p.id)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  activeProject === p.id ? 'bg-accent text-white' : 'glass-subtle text-text-secondary'
-                }`}>
-                <span className="glyph mr-1">{p.icon}</span> {p.title}
-              </button>
-            ))}
-          </div>
-
-          {!activeProject ? (
-            /* No project selected — show grid overview */
-            projects.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="text-4xl mb-3 glyph">◆</div>
-                <div className="text-text-secondary text-sm">No projects yet</div>
-                <button onClick={() => setShowCreate(true)}
-                  className="mt-4 text-xs px-4 py-2 rounded-full bg-accent text-white hover:bg-accent-light transition-all font-semibold">
-                  Create your first project
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {projects.map(p => {
-                  const isActive = p.active !== false
-                  return (
-                    <button key={p.id} onClick={() => setActiveProject(p.id)}
-                      className="w-full text-left glass rounded-2xl p-4 card-lift">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg glyph shrink-0 ${ICON_COLOR_MAP[p.color] || ICON_COLOR_MAP.blue}`}>
-                          {p.icon || '◈'}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-text text-sm">{p.title}</h3>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                              isActive ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-gray-50 text-gray-400 border border-gray-200'
-                            }`}>{isActive ? 'Active' : 'Inactive'}</span>
-                          </div>
-                          {p.summary && <p className="text-xs text-text-secondary line-clamp-1 mt-0.5">{p.summary}</p>}
-                          {p.public_url && (
-                            <p className="text-[10px] text-accent truncate mt-0.5">{p.public_url}</p>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-xs font-semibold text-text">{p.item_count || 0}</div>
-                          <div className="text-[10px] text-text-tertiary">items</div>
-                        </div>
+        ) : (
+          <div className="space-y-2">
+            {projects.map(p => {
+              const isActive = p.active !== false
+              return (
+                <button key={p.id} onClick={() => setActiveProject(p.id)}
+                  className="w-full text-left glass rounded-2xl p-4 card-lift">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg glyph shrink-0 ${ICON_COLOR_MAP[p.color] || ICON_COLOR_MAP.blue}`}>
+                      {p.icon || '◈'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-text text-sm">{p.title}</h3>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                          isActive ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-gray-50 text-gray-400 border border-gray-200'
+                        }`}>{isActive ? 'Active' : 'Inactive'}</span>
                       </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )
-          ) : loadingDetail ? (
+                      {p.summary && <p className="text-xs text-text-secondary line-clamp-1 mt-0.5">{p.summary}</p>}
+                      {p.public_url && (
+                        <p className="text-[10px] text-accent truncate mt-0.5">{p.public_url}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-semibold text-text">{p.item_count || 0}</div>
+                      <div className="text-[10px] text-text-tertiary">items</div>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )
+      ) : (
+        /* Project selected — sidebar + detail */
+        <div className="flex gap-6">
+          {/* Project sidebar */}
+          <div className="hidden md:block w-40 shrink-0">
+            <div className="sticky top-40 space-y-1 max-h-[70vh] overflow-y-auto">
+              <button onClick={() => setActiveProject(null)}
+                className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-semibold text-text-tertiary hover:text-text hover:bg-white/40 transition mb-1">
+                &larr; All Projects
+              </button>
+              {projects.map(p => (
+                <button key={p.id} onClick={() => setActiveProject(p.id)}
+                  className={`w-full text-left px-2 py-2 rounded-lg transition-colors duration-200 ${
+                    activeProject === p.id ? 'bg-accent text-white' : 'text-text-secondary hover:bg-white/40'
+                  }`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm glyph" style={{ color: activeProject === p.id ? 'white' : COLOR_HEX[p.color] }}>
+                      {p.icon || '◈'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-semibold truncate">{p.title}</div>
+                      <div className={`text-[10px] ${activeProject === p.id ? 'text-white/70' : 'text-text-tertiary'}`}>{p.item_count || 0} items</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Detail content */}
+          <div className="flex-1 min-w-0 space-y-4">
+            {/* Mobile back button */}
+            <button onClick={() => setActiveProject(null)}
+              className="md:hidden text-text-secondary text-sm hover:text-text transition mb-2">&larr; All Projects</button>
+
+            {loadingDetail ? (
             <div className="space-y-3 animate-pulse">
               {[1,2,3].map(i => <div key={i} className="h-20 bg-card-hover rounded-2xl" />)}
             </div>
@@ -361,8 +353,9 @@ export default function ProjectsPage() {
               )}
             </>
           )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Create Project Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
