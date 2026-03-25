@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { api, getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications, createIndexEntry } from '@/lib/api'
+import { api, getFeed, postFeed, updateFeed, deleteFeed, uploadFeedMedia, getInterviews, createMeeting, updateMeeting, getMeetings, sendMeetingBot, transcribeAudio, getReplies, postReply, getLinkPreview, getNotifications, createIndexEntry, getProjects, addProjectItem } from '@/lib/api'
 import { FEED_TYPES, getFeedType, timeAgo } from '@/lib/constants'
 import RichEditor, { RichContent } from '@/components/RichEditor'
 import { useAuth } from '@/lib/auth-context'
@@ -644,6 +644,9 @@ export default function FeedPage() {
     const [transcriptText, setTranscriptText] = useState(null)
     const [loadingTranscript, setLoadingTranscript] = useState(false)
     const [fileDragging, setFileDragging] = useState(false)
+    const [showProjectPicker, setShowProjectPicker] = useState(false)
+    const [projectList, setProjectList] = useState([])
+    const [addedToProject, setAddedToProject] = useState(false)
 
     async function handleIndexThis() {
       setIndexing(true)
@@ -976,6 +979,37 @@ export default function FeedPage() {
                 className={`text-[11px] font-medium transition-colors duration-200 ${indexed ? 'text-green-600' : 'text-accent hover:text-accent-light'}`}>
                 {indexing ? 'Indexing...' : indexed ? 'Indexed' : '⬡ Index This'}
               </button>
+              <span className="w-px h-3 bg-[rgba(0,0,0,0.08)]" />
+              <div className="relative">
+                <button onClick={async () => {
+                  if (addedToProject) return
+                  if (!showProjectPicker) {
+                    const res = await getProjects()
+                    setProjectList(res.data || [])
+                  }
+                  setShowProjectPicker(!showProjectPicker)
+                }}
+                  className={`text-[11px] font-medium transition-colors duration-200 ${addedToProject ? 'text-green-600' : 'text-accent hover:text-accent-light'}`}>
+                  {addedToProject ? '✓ Added' : '◆ Add to Project'}
+                </button>
+                {showProjectPicker && (
+                  <div className="absolute bottom-full left-0 mb-1 glass-strong rounded-xl shadow-lg border border-[rgba(0,0,0,0.08)] p-2 min-w-[180px] z-50">
+                    {projectList.length === 0 ? (
+                      <div className="text-[10px] text-text-tertiary p-2">No projects yet</div>
+                    ) : projectList.map(p => (
+                      <button key={p.id} onClick={async () => {
+                        await addProjectItem(p.id, { item_type: 'feed', item_id: item.id, added_by: displayName || 'Wes' })
+                        setShowProjectPicker(false)
+                        setAddedToProject(true)
+                        setTimeout(() => setAddedToProject(false), 3000)
+                      }}
+                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-card-hover transition text-xs text-text flex items-center gap-2">
+                        <span className="glyph text-sm">{p.icon}</span> {p.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
