@@ -3,7 +3,7 @@
 import "./globals.css"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { getNotifications, markNotificationsRead } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
@@ -122,8 +122,45 @@ function NavShell({ children }) {
   const [showQuickMeeting, setShowQuickMeeting] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [navMounted, setNavMounted] = useState(false)
+  const mainRef = useRef(null)
+  const prevPathRef = useRef(pathname)
 
   useEffect(() => { setNavMounted(true) }, [])
+
+  // Synchronously hide content before paint when pathname changes,
+  // then fade in after React commits the new children.
+  // This prevents the stale-content flash that occurs because the App Router
+  // briefly renders the previous page's DOM before swapping in the new page.
+  useLayoutEffect(() => {
+    if (prevPathRef.current !== pathname) {
+      prevPathRef.current = pathname
+      const el = mainRef.current
+      if (el) {
+        // Immediately hide — runs before browser paint
+        el.style.opacity = '0'
+        // Double-rAF: first rAF runs after React commit, second after browser paint
+        // by which point the new page component's initial render is in the DOM
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.opacity = '1'
+          })
+        })
+      }
+    }
+  }, [pathname])
+
+  // Handle bfcache (back/forward cache) — when the page is restored from
+  // bfcache, force a re-render to avoid showing a frozen snapshot
+  useEffect(() => {
+    const handlePageShow = (e) => {
+      if (e.persisted) {
+        const el = mainRef.current
+        if (el) el.style.opacity = '1'
+      }
+    }
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
+  }, [])
 
   const unreadCount = notifications.filter(n => !n.read).length
 
@@ -307,7 +344,7 @@ function NavShell({ children }) {
         </div>
       </nav>
 
-      <main key={pathname} className="max-w-[1100px] mx-auto px-6 py-8 pb-24 md:pb-8">
+      <main ref={mainRef} className="max-w-[1100px] mx-auto px-6 py-8 pb-24 md:pb-8" style={{ transition: 'opacity 100ms ease-out' }}>
         {navMounted ? children : (
           <div className="space-y-4 animate-pulse">
             <div className="h-8 bg-card-hover rounded-xl w-48" />
