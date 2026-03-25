@@ -229,40 +229,39 @@ function ThreadReplies({ feedId, displayName, initialCount }) {
   )
 }
 
-// Active Threads sidebar section
+// Active Threads — horizontal strip above feed
 function ActiveThreads({ feed, onThreadClick }) {
   const threads = feed
     .filter(f => (f.reply_count || 0) > 0)
     .sort((a, b) => new Date(b.last_reply_at || b.created_at) - new Date(a.last_reply_at || a.created_at))
-    .slice(0, 8)
+    .slice(0, 10)
 
   if (threads.length === 0) return null
 
   return (
-    <div className="glass rounded-2xl p-3 mb-4">
+    <div className="mb-4">
       <div className="section-label mb-2 flex items-center gap-1.5">
         <span className="glyph glyph-pulse text-sm">&#x25C8;</span>
         Active Threads
       </div>
-      <div className="space-y-1.5">
-        {threads.map(t => (
-          <button key={t.id} onClick={() => onThreadClick(t.id)}
-            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/40 transition-colors duration-200 group">
-            <div className="flex items-center gap-2">
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0 ${t.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
-                {t.author?.[0]}
-              </span>
-              <span className="text-xs text-text truncate flex-1">
-                {(t.text || '').replace(/<[^>]*>/g, '').slice(0, 50)}
-              </span>
-              <span className="tag tag-primary text-[9px] shrink-0">{t.reply_count}</span>
-            </div>
-            <div className="flex items-center gap-2 mt-0.5 pl-7">
-              {t.thread_tag && <span className="tag tag-blue text-[8px]">{t.thread_tag}</span>}
-              <span className="text-[10px] text-text-tertiary">{timeAgo(t.last_reply_at || t.created_at)}</span>
-            </div>
-          </button>
-        ))}
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+        {threads.map(t => {
+          const preview = (t.text || '').replace(/<[^>]*>/g, '').slice(0, 60)
+          return (
+            <button key={t.id} onClick={() => onThreadClick(t.id)}
+              className="glass-subtle rounded-xl px-3 py-2.5 min-w-[200px] max-w-[260px] shrink-0 text-left hover:bg-white/60 transition-colors duration-200 border border-[rgba(0,0,0,0.05)]">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0 ${t.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
+                  {t.author?.[0]}
+                </span>
+                <span className="text-[10px] text-text-tertiary flex-1 truncate">{timeAgo(t.last_reply_at || t.created_at)}</span>
+                <span className="tag tag-primary text-[9px] shrink-0">{t.reply_count}</span>
+              </div>
+              <div className="text-xs text-text truncate leading-relaxed">{preview}</div>
+              {t.thread_tag && <span className="tag tag-blue text-[8px] mt-1 inline-block">{t.thread_tag}</span>}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -1017,7 +1016,7 @@ export default function FeedPage() {
               {!mediaUrl && (
                 <>
                   <input ref={fileInputRef} type="file" className="hidden"
-                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md"
                     onChange={handleFileUpload} />
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
                     className="text-xs px-3 py-1.5 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">
@@ -1048,14 +1047,14 @@ export default function FeedPage() {
         )}
       </div>
 
+      {/* Active Threads — horizontal strip */}
+      <ActiveThreads feed={feed} onThreadClick={scrollToThread} />
+
       {/* Main content with timeline sidebar */}
       <div className="flex gap-6">
         {/* Timeline sidebar — desktop only */}
         <div className="hidden md:block w-28 shrink-0">
           <div className="sticky top-40 space-y-1 max-h-[60vh] overflow-y-auto">
-            {/* Active Threads */}
-            <ActiveThreads feed={feed} onThreadClick={scrollToThread} />
-
             {pinned.length > 0 && (
               <button onClick={() => { setSelectedDay(null); document.getElementById('pinned')?.scrollIntoView({ behavior: 'smooth' }) }}
                 className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-semibold text-amber-600 hover:bg-amber-50 transition">
