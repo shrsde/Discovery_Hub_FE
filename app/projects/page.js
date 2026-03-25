@@ -220,24 +220,35 @@ export default function ProjectsPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {projects.map(p => (
-                  <button key={p.id} onClick={() => setActiveProject(p.id)}
-                    className="w-full text-left glass rounded-2xl p-4 card-lift">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg glyph shrink-0 ${ICON_COLOR_MAP[p.color] || ICON_COLOR_MAP.blue}`}>
-                        {p.icon || '◈'}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-text text-sm">{p.title}</h3>
-                        {p.summary && <p className="text-xs text-text-secondary line-clamp-1 mt-0.5">{p.summary}</p>}
+                {projects.map(p => {
+                  const isActive = p.active !== false
+                  return (
+                    <button key={p.id} onClick={() => setActiveProject(p.id)}
+                      className="w-full text-left glass rounded-2xl p-4 card-lift">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg glyph shrink-0 ${ICON_COLOR_MAP[p.color] || ICON_COLOR_MAP.blue}`}>
+                          {p.icon || '◈'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-text text-sm">{p.title}</h3>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                              isActive ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-gray-50 text-gray-400 border border-gray-200'
+                            }`}>{isActive ? 'Active' : 'Inactive'}</span>
+                          </div>
+                          {p.summary && <p className="text-xs text-text-secondary line-clamp-1 mt-0.5">{p.summary}</p>}
+                          {p.public_url && (
+                            <p className="text-[10px] text-accent truncate mt-0.5">{p.public_url}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xs font-semibold text-text">{p.item_count || 0}</div>
+                          <div className="text-[10px] text-text-tertiary">items</div>
+                        </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-xs font-semibold text-text">{p.item_count || 0}</div>
-                        <div className="text-[10px] text-text-tertiary">items</div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  )
+                })}
               </div>
             )
           ) : loadingDetail ? (
@@ -254,22 +265,23 @@ export default function ProjectsPage() {
                     {projectDetail?.icon || '◈'}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <h2 className="font-semibold text-text">{projectDetail?.title}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold text-text">{projectDetail?.title}</h2>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                        projectDetail?.active !== false ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-gray-50 text-gray-400 border border-gray-200'
+                      }`}>{projectDetail?.active !== false ? 'Active' : 'Inactive'}</span>
+                    </div>
                     {projectDetail?.summary && <p className="text-xs text-text-secondary mt-0.5">{projectDetail.summary}</p>}
-                    {projectDetail?.description && <p className="text-xs text-text-tertiary mt-1 line-clamp-2">{projectDetail.description}</p>}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
                     {projectDetail?.public_url && (
                       <a href={projectDetail.public_url} target="_blank" rel="noopener"
-                        className="text-xs px-3 py-1.5 rounded-full glass-subtle text-accent hover:text-accent-light transition font-medium border border-accent/20">
-                        Open Link
-                      </a>
+                        className="text-[10px] text-accent hover:underline mt-0.5 block truncate">{projectDetail.public_url}</a>
                     )}
-                    <Link href={`/projects/${activeProject}`}
-                      className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition font-medium">
-                      Edit
-                    </Link>
+                    {projectDetail?.description && <p className="text-xs text-text-tertiary mt-1 line-clamp-2">{projectDetail.description}</p>}
                   </div>
+                  <Link href={`/projects/${activeProject}`}
+                    className="text-xs px-3 py-1.5 rounded-full glass-subtle text-text-secondary hover:text-text transition font-medium shrink-0">
+                    Edit
+                  </Link>
                 </div>
               </div>
 
