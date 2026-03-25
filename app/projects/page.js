@@ -583,6 +583,7 @@ export default function ProjectsPage() {
                 </DialogContent>
               </Dialog>
             </>
+          )
           )}
         </div>
       </div>
