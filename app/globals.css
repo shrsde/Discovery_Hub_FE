@@ -4,6 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Page fade-in — prevents stale content flash */
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+.page-fade { animation: pageIn 120ms ease-out forwards; }
+
 /* Hide scrollbar but keep scroll functionality */
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
