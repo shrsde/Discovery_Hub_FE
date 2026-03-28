@@ -152,6 +152,33 @@ function AttachmentItem({ att }) {
   if (isZip) {
     return <ZipPreview url={url} name={name} />
   }
+  // Previewable document types via Google Docs Viewer
+  const isPreviewable = name?.match(/\.(docx?|xlsx?|pptx?|pdf|csv|tsv|rtf|txt)$/i)
+  if (isPreviewable) {
+    return (
+      <div>
+        <div className="flex items-center gap-2">
+          <a href={url} target="_blank" rel="noopener"
+            className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition">
+            <span className="glyph">◈</span> {name || 'Download file'}
+          </a>
+          <button onClick={() => setExpanded(!expanded)}
+            className="text-[11px] px-2.5 py-1.5 rounded-lg glass-subtle text-text-secondary hover:text-text border border-[rgba(0,0,0,0.08)] transition font-medium">
+            {expanded ? 'Hide Preview' : 'Preview'}
+          </button>
+        </div>
+        {expanded && (
+          <div className="mt-2 glass rounded-xl overflow-hidden" style={{ height: '500px' }}>
+            <iframe
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+              className="w-full h-full border-0"
+              title={name}
+            />
+          </div>
+        )}
+      </div>
+    )
+  }
   return (
     <a href={url} target="_blank" rel="noopener"
       className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition w-fit">
