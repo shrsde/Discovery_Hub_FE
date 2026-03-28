@@ -31,11 +31,84 @@ function VideoEmbed({ url }) {
   )
 }
 
+function ZipPreview({ url, name }) {
+  const [expanded, setExpanded] = useState(false)
+  const [files, setFiles] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  async function loadZipContents() {
+    if (files) { setExpanded(!expanded); return }
+    setLoading(true)
+    setExpanded(true)
+    try {
+      const JSZip = (await import('jszip')).default
+      const res = await fetch(url)
+      const buf = await res.arrayBuffer()
+      const zip = await JSZip.loadAsync(buf)
+      const entries = []
+      zip.forEach((path, entry) => {
+        entries.push({
+          path,
+          dir: entry.dir,
+          size: entry._data?.uncompressedSize || 0,
+        })
+      })
+      entries.sort((a, b) => a.path.localeCompare(b.path))
+      setFiles(entries)
+    } catch (e) {
+      console.error('Zip preview failed:', e)
+      setFiles([])
+    } finally { setLoading(false) }
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <a href={url} target="_blank" rel="noopener"
+          className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition">
+          <span className="glyph">◈</span> {name || 'Download zip'}
+        </a>
+        <button onClick={loadZipContents}
+          className="text-[11px] px-2.5 py-1.5 rounded-lg glass-subtle text-text-secondary hover:text-text border border-[rgba(0,0,0,0.08)] transition font-medium">
+          {loading ? 'Loading...' : expanded ? 'Hide Contents' : 'Preview Contents'}
+        </button>
+      </div>
+      {expanded && files && (
+        <div className="mt-2 glass-subtle rounded-xl p-3 max-h-60 overflow-y-auto">
+          <div className="section-label text-[9px] mb-2">{files.length} items</div>
+          <div className="space-y-0.5 font-mono text-[11px]">
+            {files.map((f, i) => {
+              const depth = f.path.split('/').length - 1
+              const fileName = f.path.split('/').filter(Boolean).pop()
+              return (
+                <div key={i} className="flex items-center gap-1.5 text-text-secondary" style={{ paddingLeft: `${depth * 12}px` }}>
+                  <span className={`text-[10px] ${f.dir ? 'text-amber-500' : 'text-text-tertiary'}`}>
+                    {f.dir ? '◇' : '·'}
+                  </span>
+                  <span className={f.dir ? 'font-semibold text-text' : ''}>{fileName}</span>
+                  {!f.dir && f.size > 0 && <span className="text-[9px] text-text-tertiary ml-auto">{formatSize(f.size)}</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AttachmentItem({ att }) {
   const [expanded, setExpanded] = useState(false)
   const url = att.url
   const type = att.type
   const name = att.name
+  const isZip = name?.match(/\.(zip|rar|7z|tar|gz)$/i)
 
   if (type === 'video_link') {
     if (url?.includes('meet.google.com')) return null
@@ -75,6 +148,9 @@ function AttachmentItem({ att }) {
         )}
       </div>
     )
+  }
+  if (isZip) {
+    return <ZipPreview url={url} name={name} />
   }
   return (
     <a href={url} target="_blank" rel="noopener"
