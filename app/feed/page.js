@@ -1180,7 +1180,7 @@ export default function FeedPage() {
 
             <div className="flex items-center gap-2 flex-wrap">
               <input ref={fileInputRef} type="file" className="hidden"
-                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md"
+                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.zip,.rar,.7z,.tar,.gz"
                 onChange={handleFileUpload} />
               <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
                 className="text-xs px-3 py-1.5 rounded-full border border-border text-text-tertiary hover:bg-card-hover transition">
