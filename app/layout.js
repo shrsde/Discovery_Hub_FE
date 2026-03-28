@@ -17,7 +17,6 @@ const PRIMARY = [
   { href: '/feed', label: 'Feed' },
   { href: '/interviews', label: 'Interviews' },
   { href: '/projects', label: 'Projects' },
-  { href: '/documents', label: 'Docs' },
   { href: '/the-index', label: 'Index' },
   { href: '/news', label: 'News' },
 ]
@@ -370,13 +369,6 @@ function NavShell({ children }) {
                 New Project
                 <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs glyph">
                   ◆
-                </span>
-              </Link>
-              <Link href="/documents" onClick={() => setShowFab(false)}
-                className="flex items-center gap-2 glass-strong rounded-full pl-4 pr-3 py-2 shadow-lg hover:shadow-xl card-lift text-sm font-medium text-text border-0">
-                New Document
-                <span className="w-7 h-7 bg-accent text-white rounded-full flex items-center justify-center text-xs glyph">
-                  ◈
                 </span>
               </Link>
             </div>

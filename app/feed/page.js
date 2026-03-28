@@ -152,26 +152,39 @@ function AttachmentItem({ att }) {
   if (isZip) {
     return <ZipPreview url={url} name={name} />
   }
-  // Previewable document types via Google Docs Viewer
-  const isPreviewable = name?.match(/\.(docx?|xlsx?|pptx?|pdf|csv|tsv|rtf|txt)$/i)
-  if (isPreviewable) {
+  // Document with Google Drive editor (editable) or fallback to Google Viewer (read-only)
+  const isPreviewable = name?.match(/\.(docx?|xlsx?|pptx?|pdf|csv|tsv|rtf|txt|md)$/i)
+  const embedUrl = att.embed_url
+  const webViewUrl = att.web_view_url
+  if (isPreviewable || embedUrl) {
+    const iframeSrc = embedUrl || `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
+    const isEditable = !!embedUrl
     return (
       <div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <a href={url} target="_blank" rel="noopener"
             className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 hover:bg-blue-100 transition">
             <span className="glyph">◈</span> {name || 'Download file'}
           </a>
           <button onClick={() => setExpanded(!expanded)}
-            className="text-[11px] px-2.5 py-1.5 rounded-lg glass-subtle text-text-secondary hover:text-text border border-[rgba(0,0,0,0.08)] transition font-medium">
-            {expanded ? 'Hide Preview' : 'Preview'}
+            className={`text-[11px] px-2.5 py-1.5 rounded-lg glass-subtle border border-[rgba(0,0,0,0.08)] transition font-medium ${
+              isEditable ? 'text-accent hover:text-accent-light' : 'text-text-secondary hover:text-text'
+            }`}>
+            {expanded ? 'Hide' : isEditable ? 'Edit & Collaborate' : 'Preview'}
           </button>
+          {webViewUrl && (
+            <a href={webViewUrl} target="_blank" rel="noopener"
+              className="text-[11px] px-2.5 py-1.5 rounded-lg glass-subtle text-text-tertiary hover:text-text border border-[rgba(0,0,0,0.08)] transition font-medium">
+              Open in Google
+            </a>
+          )}
         </div>
         {expanded && (
-          <div className="mt-2 glass rounded-xl overflow-hidden" style={{ height: '500px' }}>
+          <div className="mt-2 glass rounded-xl overflow-hidden" style={{ height: '550px' }}>
             <iframe
-              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+              src={iframeSrc}
               className="w-full h-full border-0"
+              allow="clipboard-read; clipboard-write"
               title={name}
             />
           </div>
@@ -511,6 +524,9 @@ export default function FeedPage() {
         url: res.url,
         type: res.mediaType,
         name: res.mediaName || file.name,
+        embed_url: res.embed_url || null,
+        web_view_url: res.web_view_url || null,
+        google_file_id: res.google_file_id || null,
       }])
       // Also set first attachment as primary media for backward compat
       if (!mediaUrl) {
