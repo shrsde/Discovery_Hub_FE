@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { getProjects, getProject, createProject, addProjectItem, removeProjectItem, updateProjectItem } from '@/lib/api'
+import { getProjects, getProject, createProject, addProjectItem, removeProjectItem, updateProjectItem, uploadFeedMedia, postFeed } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { timeAgo } from '@/lib/constants'
 import { RichContent } from '@/components/RichEditor'
@@ -48,6 +48,8 @@ export default function ProjectsPage() {
   const [showAddFolder, setShowAddFolder] = useState(false)
   const [noteForm, setNoteForm] = useState({ title: '', notes: '' })
   const [folderName, setFolderName] = useState('')
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+  const docFileRef = useRef(null)
   const [addingNote, setAddingNote] = useState(false)
   const [addingFolder, setAddingFolder] = useState(false)
   const [form, setForm] = useState({ title: '', summary: '', description: '', public_url: '', icon: '◈', color: 'blue' })
@@ -134,6 +136,53 @@ export default function ProjectsPage() {
       setShowAddFolder(false)
       await loadDetail(activeProject)
     } finally { setAddingFolder(false) }
+  }
+
+  async function handleDocUpload(e) {
+    const file = e.target?.files?.[0]
+    if (!file || !activeProject) return
+    setUploadingDoc(true)
+    try {
+      // Upload to Supabase + Google Drive
+      const res = await uploadFeedMedia(file)
+
+      // Add as document item in the project
+      await addProjectItem(activeProject, {
+        item_type: 'document',
+        title: file.name,
+        url: res.url,
+        notes: res.embed_url ? 'Google Drive editable' : null,
+        folder_path: currentFolder,
+        added_by: displayName || 'Wes',
+      })
+
+      // Also create a feed post with the document
+      await postFeed({
+        author: displayName || 'Wes',
+        type: 'insight',
+        text: `<strong>Document uploaded to ${projectDetail?.title || 'project'}</strong><br><br>${file.name}`,
+        tags: [],
+        media_url: res.url,
+        media_type: res.mediaType || 'document',
+        media_name: file.name,
+        attachments: [{
+          url: res.url,
+          type: res.mediaType || 'document',
+          name: file.name,
+          embed_url: res.embed_url || null,
+          web_view_url: res.web_view_url || null,
+          google_file_id: res.google_file_id || null,
+        }],
+      })
+
+      await loadDetail(activeProject)
+      await loadProjects()
+    } catch (err) {
+      alert('Upload failed: ' + err.message)
+    } finally {
+      setUploadingDoc(false)
+      if (docFileRef.current) docFileRef.current.value = ''
+    }
   }
 
   function toggleExpand(itemId) {
@@ -392,6 +441,13 @@ export default function ProjectsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <input ref={docFileRef} type="file" className="hidden"
+                      accept=".doc,.docx,.txt,.md,.html,.rtf,.pdf,.xlsx,.xls,.csv,.tsv,.pptx,.zip,.rar,.7z,image/*,video/*"
+                      onChange={handleDocUpload} />
+                    <button onClick={() => docFileRef.current?.click()} disabled={uploadingDoc}
+                      className="text-[11px] px-2.5 py-1 rounded-full glass-subtle text-accent hover:text-accent-light transition border border-accent/20 font-medium">
+                      {uploadingDoc ? 'Uploading...' : '+ Upload'}
+                    </button>
                     <button onClick={() => setShowAddNote(true)} className="text-[11px] px-2.5 py-1 rounded-full glass-subtle text-text-secondary hover:text-text transition border border-[rgba(0,0,0,0.08)]">+ Note</button>
                     <button onClick={() => setShowAddFolder(true)} className="text-[11px] px-2.5 py-1 rounded-full glass-subtle text-text-secondary hover:text-text transition border border-[rgba(0,0,0,0.08)]">+ Folder</button>
                     <Link href={`/projects/${activeProject}`}
@@ -522,7 +578,30 @@ export default function ProjectsPage() {
                                 {isExpanded && source.parsed_summary && <p className="text-xs text-text-secondary mt-2 whitespace-pre-wrap">{source.parsed_summary}</p>}
                               </div>
                             )}
-                            {(item.item_type === 'link' || item.item_type === 'document') && (
+                            {item.item_type === 'document' && (
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="glyph text-amber-500">◆</span>
+                                  {item.url ? (
+                                    <a href={item.url} target="_blank" rel="noopener" className="text-sm text-text font-medium hover:text-accent transition">
+                                      {item.title || 'Document'}
+                                    </a>
+                                  ) : (
+                                    <span className="text-sm font-medium text-text">{item.title}</span>
+                                  )}
+                                </div>
+                                {item.notes === 'Google Drive editable' && item.url && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-200 font-medium">Editable</span>
+                                    <a href={item.url} target="_blank" rel="noopener" className="text-[10px] text-accent hover:underline">Download</a>
+                                  </div>
+                                )}
+                                {isExpanded && item.notes && item.notes !== 'Google Drive editable' && (
+                                  <p className="text-xs text-text-secondary mt-1">{item.notes}</p>
+                                )}
+                              </div>
+                            )}
+                            {item.item_type === 'link' && (
                               <div>
                                 {item.url ? (
                                   <a href={item.url} target="_blank" rel="noopener" className="text-sm text-accent hover:underline font-medium">
