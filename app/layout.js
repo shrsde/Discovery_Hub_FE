@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect, useCallback } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
-import { getNotifications, markNotificationsRead } from "@/lib/api"
+import { getNotifications, markNotificationsRead, getEmailPref, setEmailPref } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import AuthGate from "@/components/AuthGate"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -122,8 +122,14 @@ function NavShell({ children }) {
   const [showQuickMeeting, setShowQuickMeeting] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [navMounted, setNavMounted] = useState(false)
+  const [emailNotifs, setEmailNotifs] = useState(true)
 
-  useEffect(() => { setNavMounted(true) }, [])
+  useEffect(() => {
+    setNavMounted(true)
+    if (displayName) {
+      getEmailPref(displayName).then(r => setEmailNotifs(r.enabled !== false)).catch(() => {})
+    }
+  }, [displayName])
 
   // Re-trigger fade-in animation on every pathname change
   const [fadeKey, setFadeKey] = useState(0)
@@ -156,8 +162,11 @@ function NavShell({ children }) {
           schema: 'public',
           table: 'notifications',
           filter: `recipient=eq.${displayName}`,
-        }, () => {
-          loadNotifications()
+        }, (payload) => {
+          // Immediately add notification to state without refetching
+          if (payload.new) {
+            setNotifications(prev => [payload.new, ...prev])
+          }
         })
         .subscribe()
 
@@ -277,36 +286,65 @@ function NavShell({ children }) {
 
               {unreadCount > 0 && (
                 <div className="px-3 py-2 border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between bg-blue-50/30">
-                  <span className="text-xs font-semibold text-text">{unreadCount} new mention{unreadCount > 1 ? 's' : ''}</span>
+                  <span className="text-xs font-semibold text-text">{unreadCount} new</span>
                   <button onClick={handleMarkAllRead} className="text-[10px] text-accent hover:underline">
                     Mark all read
                   </button>
                 </div>
               )}
-              <div className="max-h-60 overflow-y-auto">
+              <div className="max-h-72 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="px-3 py-4 text-xs text-text-tertiary text-center">No mentions yet</div>
+                  <div className="px-3 py-6 text-xs text-text-tertiary text-center">No notifications yet</div>
                 ) : (
-                  notifications.slice(0, 10).map(n => (
-                    <DropdownMenuItem key={n.id} asChild className="p-0 focus:bg-transparent">
-                      <Link href="/feed" onClick={() => setShowUser(false)}
-                        className={`block px-3 py-2.5 border-b border-[rgba(0,0,0,0.04)] text-xs hover:bg-white/40 transition-colors duration-200 ${!n.read ? 'bg-blue-50/20' : ''}`}>
-                        <div className="flex items-center gap-2">
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${n.author === 'Wes' ? 'bg-wes' : 'bg-gibb'}`}>
-                            {n.author?.[0]}
-                          </span>
-                          <span className="text-text-secondary">
-                            <span className="font-semibold text-text">{n.author}</span> mentioned you
-                          </span>
-                          {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-auto shrink-0" />}
-                        </div>
-                        {n.preview && (
-                          <p className="text-text-tertiary mt-1 line-clamp-2 pl-7">{n.preview}</p>
-                        )}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))
+                  notifications.slice(0, 15).map(n => {
+                    const isSystem = n.author === 'System'
+                    const isMeeting = n.preview?.includes('transcribed') || n.preview?.includes('Meeting')
+                    const isInterview = n.preview?.includes('Interview') || n.preview?.includes('interview')
+                    const isReply = n.preview?.includes('replied')
+                    const tagLabel = isMeeting ? 'Meeting' : isInterview ? 'Interview' : isReply ? 'Reply' : 'Mention'
+                    const tagColor = isMeeting ? 'text-indigo-600 bg-indigo-50' : isInterview ? 'text-green-600 bg-green-50' : isReply ? 'text-purple-600 bg-purple-50' : 'text-blue-600 bg-blue-50'
+                    const timeStr = n.created_at ? new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+                    const linkTo = n.feed_id ? `/feed?thread=${n.feed_id}` : '/feed'
+
+                    return (
+                      <DropdownMenuItem key={n.id} asChild className="p-0 focus:bg-transparent">
+                        <Link href={linkTo} onClick={() => setShowUser(false)} prefetch={false}
+                          className={`block px-3 py-2.5 border-b border-[rgba(0,0,0,0.04)] hover:bg-white/40 transition-colors duration-200 ${!n.read ? 'bg-blue-50/20' : ''}`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${
+                              isSystem ? 'bg-gray-400' : n.author === 'Wes' ? 'bg-wes' : 'bg-gibb'
+                            }`}>
+                              {isSystem ? '◎' : n.author?.[0]}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-semibold text-text">{n.author}</span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${tagColor}`}>{tagLabel}</span>
+                                {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
+                                <span className="text-[9px] text-text-tertiary ml-auto shrink-0">{timeStr}</span>
+                              </div>
+                              {n.preview && (
+                                <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-2 leading-relaxed">{n.preview}</p>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                    )
+                  })
                 )}
+              </div>
+              {/* Email notification toggle */}
+              <div className="px-3 py-2.5 border-t border-[rgba(0,0,0,0.06)] flex items-center justify-between">
+                <span className="text-[11px] text-text-secondary">Email notifications</span>
+                <button onClick={() => {
+                  const next = !emailNotifs
+                  setEmailNotifs(next)
+                  if (displayName) setEmailPref(displayName, next).catch(() => {})
+                }}
+                  className={`w-8 h-4.5 rounded-full transition-colors duration-200 relative ${emailNotifs ? 'bg-accent' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${emailNotifs ? 'left-4' : 'left-0.5'}`} />
+                </button>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
