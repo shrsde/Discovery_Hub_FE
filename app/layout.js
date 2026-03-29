@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect, useCallback } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
-import { getNotifications, markNotificationsRead, getEmailPref, setEmailPref } from "@/lib/api"
+import { getNotifications, markNotificationsRead, dismissNotification, clearAllNotifications, getEmailPref, setEmailPref } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import AuthGate from "@/components/AuthGate"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -284,12 +284,20 @@ function NavShell({ children }) {
                 </button>
               </div>
 
-              {unreadCount > 0 && (
-                <div className="px-3 py-2 border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between bg-blue-50/30">
-                  <span className="text-xs font-semibold text-text">{unreadCount} new</span>
-                  <button onClick={handleMarkAllRead} className="text-[10px] text-accent hover:underline">
-                    Mark all read
-                  </button>
+              {/* Notification actions bar */}
+              {notifications.length > 0 && (
+                <div className="px-3 py-2 border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between bg-card-hover/30">
+                  <span className="text-[10px] text-text-tertiary">{notifications.length} notification{notifications.length !== 1 ? 's' : ''}{unreadCount > 0 ? ` · ${unreadCount} new` : ''}</span>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button onClick={handleMarkAllRead} className="text-[10px] text-accent hover:underline">Mark read</button>
+                    )}
+                    <button onClick={async () => {
+                      if (!displayName) return
+                      await clearAllNotifications(displayName)
+                      setNotifications([])
+                    }} className="text-[10px] text-red-500 hover:underline">Clear all</button>
+                  </div>
                 </div>
               )}
               <div className="max-h-72 overflow-y-auto">
@@ -307,9 +315,9 @@ function NavShell({ children }) {
                     const linkTo = n.feed_id ? `/feed?thread=${n.feed_id}` : '/feed'
 
                     return (
-                      <DropdownMenuItem key={n.id} asChild className="p-0 focus:bg-transparent">
+                      <div key={n.id} className={`relative border-b border-[rgba(0,0,0,0.04)] hover:bg-white/40 transition-colors duration-200 ${!n.read ? 'bg-blue-50/20' : ''}`}>
                         <Link href={linkTo} onClick={() => setShowUser(false)} prefetch={false}
-                          className={`block px-3 py-2.5 border-b border-[rgba(0,0,0,0.04)] hover:bg-white/40 transition-colors duration-200 ${!n.read ? 'bg-blue-50/20' : ''}`}>
+                          className="block px-3 py-2.5 pr-8">
                           <div className="flex items-center gap-2">
                             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${
                               isSystem ? 'bg-gray-400' : n.author === 'Wes' ? 'bg-wes' : 'bg-gibb'
@@ -329,7 +337,15 @@ function NavShell({ children }) {
                             </div>
                           </div>
                         </Link>
-                      </DropdownMenuItem>
+                        <button onClick={async (e) => {
+                          e.stopPropagation()
+                          await dismissNotification(n.id)
+                          setNotifications(prev => prev.filter(x => x.id !== n.id))
+                        }}
+                          className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full text-text-tertiary hover:text-red-500 hover:bg-red-50 transition text-[10px]">
+                          ×
+                        </button>
+                      </div>
                     )
                   })
                 )}
@@ -342,8 +358,8 @@ function NavShell({ children }) {
                   setEmailNotifs(next)
                   if (displayName) setEmailPref(displayName, next).catch(() => {})
                 }}
-                  className={`w-8 h-4.5 rounded-full transition-colors duration-200 relative ${emailNotifs ? 'bg-accent' : 'bg-gray-300'}`}>
-                  <span className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${emailNotifs ? 'left-4' : 'left-0.5'}`} />
+                  className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${emailNotifs ? 'bg-accent' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${emailNotifs ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </button>
               </div>
             </DropdownMenuContent>
